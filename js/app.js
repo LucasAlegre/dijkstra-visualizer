@@ -222,16 +222,27 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    // Update Priority Queue text
-    pqDisplay.textContent = `[${pq.map(item => `${item.node}:${item.dist}`).join(', ')}]`;
+    // Update Priority Queue and Visited Sets
+    const visitedDisplay = document.getElementById('visitedDisplay');
+    const pqDisplay = document.getElementById('pqDisplay');
+
+    if (visitedDisplay) {
+      const visitedArray = Array.from(visited);
+      visitedDisplay.innerHTML = visitedArray.length === 0 ? '∅' : `{ ${visitedArray.join(', ')} }`;
+    }
+
+    if (pqDisplay) {
+      pqDisplay.innerHTML = `[ ${pq.map(item => `(${item.node}: ${item.dist})`).join(', ')} ]`;
+    }
 
     // Update Distances table
-    let tableHtml = '<table style="width:100%; text-align:left; border-collapse:collapse;">';
-    tableHtml += '<tr><th style="border-bottom:1px solid var(--border-subtle)">Node</th><th style="border-bottom:1px solid var(--border-subtle)">Distance</th><th style="border-bottom:1px solid var(--border-subtle)">Prev</th></tr>';
+    let tableHtml = '<table style="width:100%; text-align:left; border-collapse:collapse; font-size:0.9rem;">';
+    tableHtml += '<tr><th style="padding:0.4rem; border-bottom:2px solid var(--line-strong);">Node</th><th style="padding:0.4rem; border-bottom:2px solid var(--line-strong);">Dist</th><th style="padding:0.4rem; border-bottom:2px solid var(--line-strong);">Prev</th></tr>';
     nodes.forEach(n => {
       const d = distances[n.id] === Infinity || distances[n.id] === undefined ? '∞' : distances[n.id];
       const p = previous[n.id] || '-';
-      tableHtml += `<tr><td>${n.id}</td><td>${d}</td><td>${p}</td></tr>`;
+      const rowStyle = n.id === currentNode ? 'background:var(--warm-soft);' : (visited.has(n.id) ? 'background:var(--ok-soft);' : '');
+      tableHtml += `<tr style="${rowStyle} border-bottom:1px solid var(--line);"><td style="padding:0.4rem;"><strong>${n.id}</strong></td><td style="padding:0.4rem;">${d}</td><td style="padding:0.4rem;">${p}</td></tr>`;
     });
     tableHtml += '</table>';
     distTable.innerHTML = tableHtml;

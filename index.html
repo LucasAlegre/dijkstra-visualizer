@@ -171,9 +171,14 @@
             </div>
             <div class="details-deck">
               <section class="detail-pane active" data-detail-panel="state">
-                <div id="stateSummary" class="state-summary" style="padding: 1rem;">
-                  <p><strong>Priority Queue:</strong> <span id="pqDisplay">[]</span></p>
-                  <div id="distTable" style="margin-top: 1rem;"></div>
+                <div id="stateSummary" class="state-summary" style="padding: 0.5rem 1rem;">
+                  <div style="margin-bottom: 0.5rem;">
+                    <strong>Processed Nodes (S):</strong> <span id="visitedDisplay">∅</span>
+                  </div>
+                  <div style="margin-bottom: 1rem;">
+                    <strong>Priority Queue (Q):</strong> <span id="pqDisplay">[]</span>
+                  </div>
+                  <div id="distTable" style="overflow-x:auto;"></div>
                 </div>
               </section>
             </div>
