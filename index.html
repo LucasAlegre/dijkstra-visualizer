@@ -18,15 +18,15 @@
         min-height: 400px;
         position: relative;
         overflow: hidden;
-        background-color: var(--surface-1);
+        background-color: var(--surface);
         border-radius: var(--radius-lg);
       }
       .node {
         position: absolute;
         width: 40px;
         height: 40px;
-        background-color: var(--surface-3);
-        border: 2px solid var(--border-subtle);
+        background-color: var(--surface-strong);
+        border: 2px solid var(--line-strong);
         border-radius: 50%;
         display: flex;
         align-items: center;
@@ -38,25 +38,25 @@
         transition: all 0.3s ease;
       }
       .node.start {
-        background-color: var(--accent-blue);
+        background-color: var(--accent);
         color: white;
-        border-color: var(--accent-blue-hover);
+        border-color: var(--accent-strong);
       }
       .node.visited {
-        background-color: var(--accent-teal);
+        background-color: var(--ok);
         color: white;
-        border-color: var(--accent-teal-hover);
+        border-color: var(--ok);
       }
       .node.current {
-        background-color: var(--accent-yellow);
-        color: var(--bg-main);
-        border-color: var(--accent-yellow-hover);
-        box-shadow: 0 0 10px var(--accent-yellow);
+        background-color: var(--warm);
+        color: white;
+        border-color: var(--warm);
+        box-shadow: 0 0 10px var(--warm);
       }
       .node-dist {
         position: absolute;
         top: -25px;
-        background: var(--surface-4);
+        background: var(--surface-strong);
         padding: 2px 6px;
         border-radius: 4px;
         font-size: 12px;
@@ -65,30 +65,30 @@
       }
       .edge {
         position: absolute;
-        background-color: var(--border-strong);
+        background-color: var(--line-strong);
         transform-origin: left center;
         z-index: 1;
         transition: all 0.3s ease;
       }
       .edge.active {
-        background-color: var(--accent-yellow);
+        background-color: var(--warm);
         height: 4px !important;
         z-index: 3;
       }
       .edge.visited {
-        background-color: var(--accent-teal);
+        background-color: var(--ok);
         height: 3px !important;
       }
       .edge-weight {
         position: absolute;
-        background: var(--surface-1);
+        background: var(--surface-strong);
         padding: 2px 4px;
         border-radius: 4px;
         font-size: 12px;
-        color: var(--text-muted);
+        color: var(--muted);
         transform: translate(-50%, -50%);
         z-index: 4;
-        border: 1px solid var(--border-subtle);
+        border: 1px solid var(--line-strong);
       }
     </style>
   </head>
