@@ -102,6 +102,11 @@
           Explore shortest paths in a graph.
         </p>
       </div>
+      <div class="topbar-actions">
+        <button id="helpBtn" class="icon-btn" type="button" aria-haspopup="dialog" aria-controls="helpOverlay">?</button>
+        <button id="referencesBtn" class="icon-btn" type="button" aria-haspopup="dialog" aria-controls="referencesOverlay">#</button>
+        <button id="themeToggle" class="icon-btn" type="button" aria-label="Toggle theme">☀</button>
+      </div>
     </header>
 
     <main class="layout split-layout" id="mainLayout">
@@ -176,6 +181,35 @@
         </div>
       </section>
     </main>
+
+    <div id="helpOverlay" class="modal-overlay" role="dialog" aria-modal="true" hidden>
+      <div class="modal-card panel">
+        <div class="modal-header">
+          <h2 id="helpTitle">How to use this tool</h2>
+          <button id="helpCloseBtn" class="secondary" type="button">Close</button>
+        </div>
+        <div id="helpContent" class="modal-content">
+          <p><strong>Run step:</strong> Advance the algorithm by one step.</p>
+          <p><strong>Auto run:</strong> Run the algorithm automatically. You can control the speed using the "Auto speed" selector.</p>
+          <p><strong>Reset:</strong> Reset the current graph to the initial state.</p>
+          <p><strong>New Graph:</strong> Generate a completely new random graph.</p>
+          <p>In the graph view, the <span style="color:var(--accent-strong)">blue node</span> is the start node. The <span style="color:var(--warm)">orange node</span> is the current node being evaluated. The <span style="color:var(--ok)">teal nodes</span> have been visited and their shortest path is known.</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="referencesOverlay" class="modal-overlay" role="dialog" aria-modal="true" hidden>
+      <div class="modal-card panel">
+        <div class="modal-header">
+          <h2 id="referencesTitle">References</h2>
+          <button id="referencesCloseBtn" class="secondary" type="button">Close</button>
+        </div>
+        <div id="referencesContent" class="modal-content">
+          <p>Dijkstra, E. W. (1959). A note on two problems in connexion with graphs. <em>Numerische Mathematik</em>, 1(1), 269-271.</p>
+          <p>Cormen, T. H., Leiserson, C. E., Rivest, R. L., & Stein, C. (2009). <em>Introduction to Algorithms</em> (3rd ed.). MIT Press.</p>
+        </div>
+      </div>
+    </div>
 
     <footer>
       <p id="footerCredits">

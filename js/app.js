@@ -298,6 +298,39 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // Modals
+  const helpBtn = document.getElementById('helpBtn');
+  const helpOverlay = document.getElementById('helpOverlay');
+  const helpCloseBtn = document.getElementById('helpCloseBtn');
+  
+  const referencesBtn = document.getElementById('referencesBtn');
+  const referencesOverlay = document.getElementById('referencesOverlay');
+  const referencesCloseBtn = document.getElementById('referencesCloseBtn');
+  
+  helpBtn.addEventListener('click', () => helpOverlay.hidden = false);
+  helpCloseBtn.addEventListener('click', () => helpOverlay.hidden = true);
+  
+  referencesBtn.addEventListener('click', () => referencesOverlay.hidden = false);
+  referencesCloseBtn.addEventListener('click', () => referencesOverlay.hidden = true);
+  
+  // Theme Toggle
+  const themeToggle = document.getElementById('themeToggle');
+  
+  // Load saved theme
+  if (localStorage.getItem('theme') === 'dark') {
+    document.body.dataset.theme = 'dark';
+  }
+  
+  themeToggle.addEventListener('click', () => {
+    if (document.body.dataset.theme === 'dark') {
+      document.body.dataset.theme = '';
+      localStorage.setItem('theme', 'light');
+    } else {
+      document.body.dataset.theme = 'dark';
+      localStorage.setItem('theme', 'dark');
+    }
+  });
+
   // Small delay to ensure container dimensions are set
   setTimeout(initGraph, 100);
 });
