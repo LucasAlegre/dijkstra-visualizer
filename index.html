@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Dijkstra's Algorithm Visualizer</title>
+    <meta
+      name="description"
+      content="Interactive visualization for Dijkstra's shortest path algorithm."
+    >
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+      /* Additional styles for graph visualization */
+      .graph-container {
+        width: 100%;
+        height: 100%;
+        min-height: 400px;
+        position: relative;
+        overflow: hidden;
+        background-color: var(--surface-1);
+        border-radius: var(--radius-lg);
+      }
+      .node {
+        position: absolute;
+        width: 40px;
+        height: 40px;
+        background-color: var(--surface-3);
+        border: 2px solid var(--border-subtle);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        color: var(--text-main);
+        transform: translate(-50%, -50%);
+        z-index: 2;
+        transition: all 0.3s ease;
+      }
+      .node.start {
+        background-color: var(--accent-blue);
+        color: white;
+        border-color: var(--accent-blue-hover);
+      }
+      .node.visited {
+        background-color: var(--accent-teal);
+        color: white;
+        border-color: var(--accent-teal-hover);
+      }
+      .node.current {
+        background-color: var(--accent-yellow);
+        color: var(--bg-main);
+        border-color: var(--accent-yellow-hover);
+        box-shadow: 0 0 10px var(--accent-yellow);
+      }
+      .node-dist {
+        position: absolute;
+        top: -25px;
+        background: var(--surface-4);
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 12px;
+        white-space: nowrap;
+        pointer-events: none;
+      }
+      .edge {
+        position: absolute;
+        background-color: var(--border-strong);
+        transform-origin: left center;
+        z-index: 1;
+        transition: all 0.3s ease;
+      }
+      .edge.active {
+        background-color: var(--accent-yellow);
+        height: 4px !important;
+        z-index: 3;
+      }
+      .edge.visited {
+        background-color: var(--accent-teal);
+        height: 3px !important;
+      }
+      .edge-weight {
+        position: absolute;
+        background: var(--surface-1);
+        padding: 2px 4px;
+        border-radius: 4px;
+        font-size: 12px;
+        color: var(--text-muted);
+        transform: translate(-50%, -50%);
+        z-index: 4;
+        border: 1px solid var(--border-subtle);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app-bg"></div>
+    <header class="topbar">
+      <div class="brand-block">
+        <p class="eyebrow" id="eyebrowText">Graph Algorithms</p>
+        <h1 id="appTitle">Dijkstra's Algorithm Visualizer</h1>
+        <p class="subtitle" id="appSubtitle">
+          Explore shortest paths in a graph.
+        </p>
+      </div>
+    </header>
+
+    <main class="layout split-layout" id="mainLayout">
+      <aside class="panel control-panel settings-rail" data-pane="primary" aria-labelledby="controlsTitle">
+        <div id="settingsShell" class="settings-shell">
+          <div class="panel-header control-head">
+            <div>
+              <p class="panel-kicker" id="controlsKicker">Control panel</p>
+              <h2 id="controlsTitle">Execution Controls</h2>
+            </div>
+            <div class="status-cluster">
+              <div id="liveBadge" class="live-badge">Ready</div>
+            </div>
+          </div>
+
+          <div class="settings-stack">
+            <section class="settings-group">
+              <div class="toolbar">
+                <button id="stepBtn" type="button">Run step</button>
+                <button id="autoBtn" type="button">Auto run</button>
+                <button id="resetBtn" class="secondary" type="button">Reset</button>
+                <button id="newGraphBtn" class="secondary" type="button">New Graph</button>
+              </div>
+              <label class="field compact-field" style="margin-top: 1rem;">
+                <span id="speedLabel">Auto speed</span>
+                <select id="speedSelect">
+                  <option value="1000">Slow</option>
+                  <option value="500" selected>Normal</option>
+                  <option value="100">Fast</option>
+                </select>
+              </label>
+            </section>
+            
+            <div id="statusBanner" class="status-banner" role="status" aria-live="polite">
+              Click "Run step" to start the algorithm.
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <section class="workspace">
+        <div class="panel workspace-top">
+          <div class="board-meta">
+            <p class="panel-kicker" id="viewKicker">Visualization</p>
+            <h2 id="viewTitle">Graph View</h2>
+          </div>
+        </div>
+
+        <div class="board-stack split-layout" id="boardStack">
+          <section class="panel main-visual-panel" data-pane="primary">
+            <div id="viewHost" class="view-host graph-container">
+              <!-- Graph elements will be injected here -->
+            </div>
+          </section>
+
+          <section class="panel details-panel" aria-labelledby="detailsTitle">
+            <div class="panel-header details-header">
+              <div>
+                <p class="panel-kicker" id="detailsKicker">Supporting panels</p>
+                <h2 id="detailsTitle">Algorithm State</h2>
+              </div>
+            </div>
+            <div class="details-deck">
+              <section class="detail-pane active" data-detail-panel="state">
+                <div id="stateSummary" class="state-summary" style="padding: 1rem;">
+                  <p><strong>Priority Queue:</strong> <span id="pqDisplay">[]</span></p>
+                  <div id="distTable" style="margin-top: 1rem;"></div>
+                </div>
+              </section>
+            </div>
+          </section>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <p id="footerCredits">
+        &copy; 2026 Developed by Lucas Nunes Alegre
+      </p>
+    </footer>
+
+    <script src="js/app.js"></script>
+  </body>
+</html>
