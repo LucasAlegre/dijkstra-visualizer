@@ -224,7 +224,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Update Priority Queue and Visited Sets
     const visitedDisplay = document.getElementById('visitedDisplay');
-    const pqDisplay = document.getElementById('pqDisplay');
+    // pqDisplay is already defined at the top
 
     if (visitedDisplay) {
       const visitedArray = Array.from(visited);
