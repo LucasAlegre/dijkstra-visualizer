@@ -1,919 +1,588 @@
-document.addEventListener('DOMContentLoaded', () => {
-  const container = document.getElementById('viewHost');
-  const stepBtn = document.getElementById('stepBtn');
-  const autoBtn = document.getElementById('autoBtn');
-  const resetBtn = document.getElementById('resetBtn');
-  const newGraphBtn = document.getElementById('newGraphBtn');
-  const statusBanner = document.getElementById('statusBanner');
-  const liveBadge = document.getElementById('liveBadge');
-  const pqDisplay = document.getElementById('pqDisplay');
-  const distTable = document.getElementById('distTable');
-  const pseudoCode = document.getElementById('pseudoCode');
-  const relaxExplain = document.getElementById('relaxExplain');
-  const exampleGraphSelect = document.getElementById('exampleGraphSelect');
-  const loadExampleBtn = document.getElementById('loadExampleBtn');
-  const exportGraphBtn = document.getElementById('exportGraphBtn');
-  const graphFileInput = document.getElementById('graphFileInput');
-  const graphJsonInput = document.getElementById('graphJsonInput');
-  const applyGraphBtn = document.getElementById('applyGraphBtn');
-  const nodeCountInput = document.getElementById('nodeCountInput');
-  const densityRange = document.getElementById('densityRange');
-  const densityValue = document.getElementById('densityValue');
-  const boardStack = document.getElementById('boardStack');
-  const boardResizeHandle = boardStack?.querySelector('.resize-handle-x');
+// Visualização do algoritmo de Dijkstra com fila de prioridade (heap).
+// Toda a execução é pré-calculada como uma lista de passos (snapshots);
+// avançar/voltar apenas escolhe qual passo desenhar.
+(function () {
+  'use strict';
 
-  let graph = {};
-  let nodes = [];
-  let edges = [];
-  
-  let distances = {};
-  let previous = {};
-  let pq = [];
-  let visited = new Set();
-  let state = 'IDLE'; // IDLE, RUNNING, DONE
-  let autoTimer = null;
-  let startNode = null;
-  let currentNode = null;
-  let activePseudoLine = 'idle';
-  let relaxationChecks = [];
+  const { EXAMPLES, randomGraph } = window.DijkstraGraphs;
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  const R = 27;       // raio dos vértices (unidades do SVG)
+  const ARROW = 17;   // comprimento da ponta de seta
+  const INF = Infinity;
 
-  const AUTO_RUN_DELAY_MS = 500;
-
-  const pseudoLines = [
-    { key: 'idle', text: 'Click Run step to initialize Dijkstra.' },
-    { key: 'init-all', text: 'for each node v: dist[v] = infinity; prev[v] = null' },
-    { key: 'seed-start', text: 'dist[start] = 0; Q.push(start, 0)' },
-    { key: 'while-loop', text: 'while Q is not empty:' },
-    { key: 'extract-min', text: 'u = extract-min(Q)' },
-    { key: 'skip-visited', text: 'if u already visited: continue' },
-    { key: 'visit-u', text: 'mark u as visited' },
-    { key: 'scan-neighbors', text: 'for each neighbor v of u with weight w:' },
-    { key: 'relax-update', text: 'if dist[u] + w < dist[v]: dist[v] = dist[u] + w; prev[v] = u' },
-    { key: 'done', text: 'Q empty -> done; shortest paths finalized' }
-  ];
-
-  const exampleGraphs = {
-    classic: {
-      label: 'Classic A-F Graph',
-      graph: {
-        start: 'A',
-        nodes: ['A', 'B', 'C', 'D', 'E', 'F'],
-        edges: [
-          { source: 'A', target: 'B', weight: 4 },
-          { source: 'A', target: 'C', weight: 2 },
-          { source: 'B', target: 'C', weight: 1 },
-          { source: 'B', target: 'D', weight: 5 },
-          { source: 'C', target: 'D', weight: 8 },
-          { source: 'C', target: 'E', weight: 10 },
-          { source: 'D', target: 'E', weight: 2 },
-          { source: 'D', target: 'F', weight: 6 },
-          { source: 'E', target: 'F', weight: 3 }
-        ]
-      }
-    },
-    city: {
-      label: 'City Route Graph',
-      graph: {
-        start: 'S',
-        nodes: ['S', 'A', 'B', 'C', 'D', 'E', 'T'],
-        edges: [
-          { source: 'S', target: 'A', weight: 3 },
-          { source: 'S', target: 'B', weight: 6 },
-          { source: 'A', target: 'C', weight: 4 },
-          { source: 'A', target: 'D', weight: 4 },
-          { source: 'B', target: 'D', weight: 2 },
-          { source: 'C', target: 'E', weight: 5 },
-          { source: 'D', target: 'E', weight: 1 },
-          { source: 'D', target: 'T', weight: 9 },
-          { source: 'E', target: 'T', weight: 3 }
-        ]
-      }
-    },
-    sparse: {
-      label: 'Sparse Network',
-      graph: {
-        start: 'A',
-        nodes: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'],
-        edges: [
-          { source: 'A', target: 'B', weight: 7 },
-          { source: 'A', target: 'D', weight: 5 },
-          { source: 'B', target: 'C', weight: 8 },
-          { source: 'B', target: 'E', weight: 7 },
-          { source: 'C', target: 'F', weight: 4 },
-          { source: 'D', target: 'E', weight: 2 },
-          { source: 'E', target: 'F', weight: 6 },
-          { source: 'E', target: 'G', weight: 3 },
-          { source: 'F', target: 'H', weight: 5 },
-          { source: 'G', target: 'H', weight: 2 }
-        ]
-      }
-    }
+  const $ = id => document.getElementById(id);
+  const ui = {
+    layout: $('layout'),
+    svg: $('graph'),
+    graphName: $('graphName'),
+    setX: $('setX'),
+    setRest: $('setRest'),
+    heap: $('heap'),
+    distBody: $('distBody'),
+    message: $('message'),
+    stepCounter: $('stepCounter'),
+    progressBar: $('progressBar'),
+    pseudoPanel: $('pseudoPanel'),
+    pseudoBtn: $('pseudoBtn'),
+    graphsBtn: $('graphsBtn'),
+    graphsMenu: $('graphsMenu'),
+    exampleList: $('exampleList'),
+    nodeCount: $('nodeCount'),
+    nodeCountValue: $('nodeCountValue'),
+    directedCheck: $('directedCheck'),
+    randomBtn: $('randomBtn'),
+    helpBtn: $('helpBtn'),
+    helpDialog: $('helpDialog'),
+    resetBtn: $('resetBtn'),
+    prevBtn: $('prevBtn'),
+    nextBtn: $('nextBtn'),
+    autoBtn: $('autoBtn'),
+    speedSelect: $('speedSelect')
   };
 
-  function setPseudoLine(lineKey) {
-    activePseudoLine = lineKey;
+  let graph = null;     // grafo normalizado
+  let steps = [];       // snapshots da execução
+  let current = 0;      // passo exibido
+  let timer = null;     // execução automática
+  let hovered = null;   // vértice cujo caminho está destacado
+  let dom = null;       // elementos SVG do grafo atual
+
+  const fmt = value => (value === INF ? '∞' : String(value));
+  const nodeRef = id => `<span class="ref">${id}</span>`;
+
+  // ── Grafo ────────────────────────────────────────────────────────────────
+
+  function normalize(def) {
+    const nodes = def.nodes.map(n => ({ ...n }));
+    const edges = def.edges.map(([u, v, w, t]) => ({ u, v, w, t: t == null ? 0.5 : t }));
+    const order = new Map(nodes.map((n, i) => [n.id, i]));
+    const adj = new Map(nodes.map(n => [n.id, []]));
+    edges.forEach((e, i) => {
+      adj.get(e.u).push({ to: e.v, w: e.w, edge: i });
+      if (!def.directed) adj.get(e.v).push({ to: e.u, w: e.w, edge: i });
+    });
+    adj.forEach(list => list.sort((a, b) => order.get(a.to) - order.get(b.to)));
+    return { name: def.name, description: def.description, directed: def.directed, source: def.source, nodes, edges, order, adj };
   }
 
-  function clamp(value, min, max) {
-    return Math.max(min, Math.min(max, value));
-  }
+  // ── Execução (pseudocódigo do slide DijkstraHeap, aula 18) ──────────────
 
-  function getRandomGraphOptions() {
-    const rawNodeCount = parseInt(nodeCountInput?.value || '7', 10);
-    const rawDensity = parseInt(densityRange?.value || '40', 10);
+  function buildSteps(g) {
+    const s = g.source;
+    const ids = g.nodes.map(n => n.id);
+    const key = {};
+    const dist = {};
+    const pred = {};
+    const predEdge = {};
+    const X = [];
+    const H = new Set();
+    const out = [];
 
-    const nodeCount = clamp(Number.isFinite(rawNodeCount) ? rawNodeCount : 7, 4, 24);
-    const densityPercent = clamp(Number.isFinite(rawDensity) ? rawDensity : 40, 10, 90);
+    const snap = extra => out.push(Object.assign({
+      key: { ...key }, dist: { ...dist }, pred: { ...pred }, predEdge: { ...predEdge },
+      X: X.slice(), H: Array.from(H),
+      wStar: null, target: null, edge: null, changed: null, old: null, extracted: null
+    }, extra));
 
-    if (nodeCountInput) {
-      nodeCountInput.value = String(nodeCount);
-    }
-
-    return {
-      nodeCount,
-      density: densityPercent / 100,
-      densityPercent
-    };
-  }
-
-  function updateDensityDisplay() {
-    if (!densityValue || !densityRange) return;
-    densityValue.textContent = `${densityRange.value}%`;
-  }
-
-  function getContainerSize() {
-    return {
-      width: container.clientWidth || 700,
-      height: container.clientHeight || 430
-    };
-  }
-
-  function computeLeftBiasedLayout(nodeIds, edgeList, startId, width, height) {
-    const adjacency = {};
-    nodeIds.forEach(id => {
-      adjacency[id] = new Set();
+    const m = g.edges.length;
+    snap({
+      phase: 'input',
+      lines: [1, 2],
+      msg: `<b>Entrada:</b> grafo ${g.directed ? 'direcionado' : 'não direcionado'} com ${ids.length} vértices e ${m} arestas (pesos <i>ℓ</i> ≥ 0) e origem <i>s</i> = ${nodeRef(s)}. ` +
+        `<b>Saída:</b> dist(<i>v</i>) para todo <i>v</i> ∈ <i>V</i>. <span class="tip">Clique em um vértice para mudar a origem.</span>`
     });
 
-    edgeList.forEach(edge => {
-      if (adjacency[edge.source] && adjacency[edge.target]) {
-        adjacency[edge.source].add(edge.target);
-        adjacency[edge.target].add(edge.source);
-      }
+    ids.forEach(id => { key[id] = id === s ? 0 : INF; H.add(id); });
+    snap({
+      phase: 'init',
+      lines: [3, 4, 5, 6, 7],
+      msg: `<b>Inicialização:</b> <i>X</i> = ∅, key(${nodeRef(s)}) = 0 e key(<i>v</i>) = ∞ para os demais. Todos os vértices entram em <i>H</i>.`
     });
 
-    const levels = new Map();
-    const queue = [startId];
-    levels.set(startId, 0);
-
-    while (queue.length > 0) {
-      const current = queue.shift();
-      const currentLevel = levels.get(current);
-      adjacency[current].forEach(next => {
-        if (!levels.has(next)) {
-          levels.set(next, currentLevel + 1);
-          queue.push(next);
-        }
+    while (H.size > 0) {
+      let w = null;
+      H.forEach(id => {
+        if (w === null || key[id] < key[w] || (key[id] === key[w] && g.order.get(id) < g.order.get(w))) w = id;
       });
-    }
-
-    let maxLevel = 0;
-    levels.forEach(level => {
-      maxLevel = Math.max(maxLevel, level);
-    });
-
-    nodeIds.forEach(id => {
-      if (!levels.has(id)) {
-        maxLevel += 1;
-        levels.set(id, maxLevel);
-      }
-    });
-
-    const grouped = new Map();
-    nodeIds.forEach(id => {
-      const level = levels.get(id);
-      if (!grouped.has(level)) {
-        grouped.set(level, []);
-      }
-      grouped.get(level).push(id);
-    });
-
-    const xPadding = 56;
-    const yPadding = 42;
-    const minNodePadding = 24;
-    const usableWidth = Math.max(120, width - (2 * xPadding));
-    const safeMaxLevel = Math.max(maxLevel, 1);
-    const layout = {};
-
-    const sortedLevels = Array.from(grouped.keys()).sort((a, b) => a - b);
-    sortedLevels.forEach(level => {
-      const ids = grouped.get(level).sort();
-      const x = xPadding + (level / safeMaxLevel) * usableWidth;
-      const availableHeight = Math.max(1, height - (2 * yPadding));
-      const yStep = ids.length > 1 ? (availableHeight / (ids.length - 1)) : 0;
-
-      ids.forEach((id, index) => {
-        const baseY = ids.length === 1 ? (height / 2) : (yPadding + (yStep * index));
-        const seed = Array.from(id).reduce((sum, char) => sum + char.charCodeAt(0), 0);
-        const jitter = id === startId ? 0 : ((seed % 11) - 5);
-        const y = clamp(baseY + jitter, minNodePadding, height - minNodePadding);
-
-        layout[id] = {
-          x: clamp(x, minNodePadding, width - minNodePadding),
-          y
-        };
+      H.delete(w);
+      X.push(w);
+      dist[w] = key[w];
+      const unreachable = dist[w] === INF;
+      snap({
+        phase: 'extract',
+        lines: [8, 9, 10, 11],
+        wStar: w,
+        extracted: { id: w, key: key[w] },
+        msg: `<b>ExtractMin(<i>H</i>)</b> = ${nodeRef(w)}, com key ${fmt(key[w])}. ${nodeRef(w)} sai de <i>H</i> e entra em <i>X</i>: dist(${nodeRef(w)}) = <b>${fmt(dist[w])}</b>.` +
+          (unreachable ? ` Como a key é ∞, ${nodeRef(w)} não é alcançável a partir de ${nodeRef(s)}.` : '')
       });
-    });
-
-    return layout;
-  }
-
-  function resetAlgorithmState() {
-    distances = {};
-    previous = {};
-    pq = [];
-    relaxationChecks = [];
-    visited.clear();
-    state = 'IDLE';
-    currentNode = null;
-    setPseudoLine('idle');
-    liveBadge.textContent = 'Ready';
-    liveBadge.className = 'live-badge';
-  }
-
-  function buildAdjacencyFromEdges(nodeList, edgeList) {
-    const adjacency = {};
-    nodeList.forEach(node => {
-      adjacency[node.id] = [];
-    });
-
-    edgeList.forEach(edge => {
-      adjacency[edge.source].push({ node: edge.target, weight: edge.weight });
-      adjacency[edge.target].push({ node: edge.source, weight: edge.weight });
-    });
-
-    return adjacency;
-  }
-
-  function normalizeGraphDefinition(definition) {
-    if (!definition || typeof definition !== 'object') {
-      throw new Error('Graph definition must be a JSON object.');
-    }
-
-    if (!Array.isArray(definition.edges) || definition.edges.length === 0) {
-      throw new Error('Graph must include a non-empty "edges" array.');
-    }
-
-    const edgeList = definition.edges.map((edge, index) => {
-      if (!edge || typeof edge !== 'object') {
-        throw new Error(`Edge at index ${index} is not valid.`);
-      }
-
-      const source = String(edge.source || '').trim();
-      const target = String(edge.target || '').trim();
-      const weight = Number(edge.weight);
-
-      if (!source || !target) {
-        throw new Error(`Edge at index ${index} must define source and target.`);
-      }
-
-      if (!Number.isFinite(weight) || weight <= 0) {
-        throw new Error(`Edge ${source}-${target} must have a positive weight.`);
-      }
-
-      return { source, target, weight };
-    });
-
-    const nodeMap = new Map();
-    if (Array.isArray(definition.nodes) && definition.nodes.length > 0) {
-      definition.nodes.forEach((rawNode, index) => {
-        if (typeof rawNode === 'string') {
-          const id = rawNode.trim();
-          if (!id) {
-            throw new Error(`Node at index ${index} is empty.`);
-          }
-          nodeMap.set(id, { id });
-          return;
+      let evaluated = 0;
+      for (const { to: y, w: len, edge } of unreachable ? [] : g.adj.get(w)) {
+        if (!H.has(y)) continue; // y já está em X
+        evaluated++;
+        const old = key[y];
+        const cand = dist[w] + len;
+        const better = cand < old;
+        if (better) {
+          key[y] = cand;
+          pred[y] = w;
+          predEdge[y] = edge;
         }
-
-        if (!rawNode || typeof rawNode !== 'object') {
-          throw new Error(`Node at index ${index} is not valid.`);
-        }
-
-        const id = String(rawNode.id || '').trim();
-        if (!id) {
-          throw new Error(`Node at index ${index} must include an id.`);
-        }
-
-        nodeMap.set(id, {
-          id,
-          x: Number.isFinite(rawNode.x) ? rawNode.x : undefined,
-          y: Number.isFinite(rawNode.y) ? rawNode.y : undefined
+        snap({
+          phase: 'relax',
+          lines: [12, 13, 14, 15],
+          wStar: w,
+          target: y,
+          edge,
+          changed: better ? y : null,
+          old,
+          msg: `Aresta (${nodeRef(w)}, ${nodeRef(y)}): key(${nodeRef(y)}) = min{${fmt(old)}, ${dist[w]} + ${len}} = <b>${fmt(key[y])}</b> — ` +
+            (better ? '<span class="good">atualizada!</span>' : 'sem mudança.')
         });
-      });
-    }
-
-    edgeList.forEach(edge => {
-      if (!nodeMap.has(edge.source)) {
-        nodeMap.set(edge.source, { id: edge.source });
       }
-      if (!nodeMap.has(edge.target)) {
-        nodeMap.set(edge.target, { id: edge.target });
-      }
-    });
 
-    const nodeList = Array.from(nodeMap.values());
-    if (nodeList.length < 2) {
-      throw new Error('Graph must contain at least two nodes.');
-    }
-
-    const start = definition.start && nodeMap.has(definition.start)
-      ? definition.start
-      : nodeList[0].id;
-
-    const { width, height } = getContainerSize();
-    const layout = computeLeftBiasedLayout(
-      nodeList.map(node => node.id),
-      edgeList,
-      start,
-      width,
-      height
-    );
-
-    nodeList.forEach((node, index) => {
-      if (!Number.isFinite(node.x) || !Number.isFinite(node.y)) {
-        node.x = layout[node.id].x;
-        node.y = layout[node.id].y;
-      }
-    });
-
-    return {
-      start,
-      nodes: nodeList,
-      edges: edgeList
-    };
-  }
-
-  function renderGraph() {
-    container.innerHTML = '';
-    drawEdges();
-    drawNodes();
-  }
-
-  function syncGraphEditor() {
-    if (!graphJsonInput) return;
-
-    const serialized = {
-      start: startNode,
-      nodes: nodes.map(node => ({
-        id: node.id,
-        x: Math.round(node.x),
-        y: Math.round(node.y)
-      })),
-      edges: edges.map(edge => ({
-        source: edge.source,
-        target: edge.target,
-        weight: edge.weight
-      }))
-    };
-
-    graphJsonInput.value = JSON.stringify(serialized, null, 2);
-  }
-
-  function loadGraphDefinition(definition, sourceLabel = 'Graph loaded.') {
-    stopAuto();
-
-    const normalized = normalizeGraphDefinition(definition);
-    startNode = normalized.start;
-    nodes = normalized.nodes;
-    edges = normalized.edges;
-    graph = buildAdjacencyFromEdges(nodes, edges);
-    resetAlgorithmState();
-    statusBanner.textContent = sourceLabel;
-
-    renderGraph();
-    updateUI();
-    syncGraphEditor();
-  }
-
-  function generateRandomGraphDefinition() {
-    const { nodeCount, density } = getRandomGraphOptions();
-    const { width, height } = getContainerSize();
-    const generatedEdges = [];
-
-    const makeNodeId = index => {
-      if (index < 26) return String.fromCharCode(65 + index);
-      return `N${index + 1}`;
-    };
-
-    const generatedNodeIds = [];
-
-    for (let i = 0; i < nodeCount; i++) {
-      generatedNodeIds.push(makeNodeId(i));
-    }
-
-    for (let i = 0; i < nodeCount; i++) {
-      for (let j = i + 1; j < nodeCount; j++) {
-        const isCycleEdge = j === i + 1 || (i === 0 && j === nodeCount - 1);
-        if (isCycleEdge || Math.random() < density) {
-          generatedEdges.push({
-            source: generatedNodeIds[i],
-            target: generatedNodeIds[j],
-            weight: Math.floor(Math.random() * 9) + 1
-          });
-        }
-      }
-    }
-
-    const startId = generatedNodeIds[0];
-    const layout = computeLeftBiasedLayout(generatedNodeIds, generatedEdges, startId, width, height);
-    const generatedNodes = generatedNodeIds.map(id => ({
-      id,
-      x: layout[id].x,
-      y: layout[id].y
-    }));
-
-    return {
-      start: startId,
-      nodes: generatedNodes,
-      edges: generatedEdges
-    };
-  }
-
-  function setupBoardResizeHandle() {
-    if (!boardStack || !boardResizeHandle) return;
-
-    const minLeft = 280;
-    const minRight = 330;
-
-    const clearInlineSplitOnSmallScreens = () => {
-      if (window.matchMedia('(max-width: 1200px)').matches) {
-        boardStack.style.gridTemplateColumns = '';
-      }
-    };
-
-    clearInlineSplitOnSmallScreens();
-    window.addEventListener('resize', clearInlineSplitOnSmallScreens);
-
-    boardResizeHandle.addEventListener('pointerdown', event => {
-      if (window.matchMedia('(max-width: 1200px)').matches) return;
-
-      event.preventDefault();
-      const pointerId = event.pointerId;
-      boardResizeHandle.setPointerCapture(pointerId);
-      boardResizeHandle.classList.add('is-active');
-      document.body.classList.add('is-resizing');
-
-      const stackRect = boardStack.getBoundingClientRect();
-      const leftPanel = boardStack.querySelector('.main-visual-panel');
-      const rightPanel = boardStack.querySelector('.details-panel');
-      const handleRect = boardResizeHandle.getBoundingClientRect();
-
-      const initialLeft = leftPanel ? leftPanel.getBoundingClientRect().width : stackRect.width * 0.5;
-      const initialRight = rightPanel ? rightPanel.getBoundingClientRect().width : stackRect.width * 0.5;
-      const handleWidth = handleRect.width || 14;
-      const startX = event.clientX;
-
-      const onMove = moveEvent => {
-        const deltaX = moveEvent.clientX - startX;
-        const maxLeft = Math.max(minLeft, stackRect.width - handleWidth - minRight);
-        const nextLeft = clamp(initialLeft + deltaX, minLeft, maxLeft);
-        const nextRight = Math.max(minRight, stackRect.width - handleWidth - nextLeft);
-        boardStack.style.gridTemplateColumns = `${Math.round(nextLeft)}px ${Math.round(handleWidth)}px ${Math.round(nextRight)}px`;
-      };
-
-      const onUp = () => {
-        boardResizeHandle.classList.remove('is-active');
-        document.body.classList.remove('is-resizing');
-        window.removeEventListener('pointermove', onMove);
-        window.removeEventListener('pointerup', onUp);
-      };
-
-      window.addEventListener('pointermove', onMove);
-      window.addEventListener('pointerup', onUp, { once: true });
-    });
-  }
-
-  function initGraph() {
-    const options = getRandomGraphOptions();
-    loadGraphDefinition(
-      generateRandomGraphDefinition(),
-      `Random graph generated (${options.nodeCount} nodes, ${options.densityPercent}% density). Click "Run step" to start.`
-    );
-  }
-
-  function drawEdges() {
-    edges.forEach(edge => {
-      const n1 = nodes.find(n => n.id === edge.source);
-      const n2 = nodes.find(n => n.id === edge.target);
-      
-      const dx = n2.x - n1.x;
-      const dy = n2.y - n1.y;
-      const length = Math.sqrt(dx * dx + dy * dy);
-      const angle = Math.atan2(dy, dx) * 180 / Math.PI;
-
-      const edgeEl = document.createElement('div');
-      edgeEl.className = 'edge';
-      edgeEl.id = `edge-${edge.source}-${edge.target}`;
-      edgeEl.style.width = `${length}px`;
-      edgeEl.style.height = '2px';
-      edgeEl.style.left = `${n1.x}px`;
-      edgeEl.style.top = `${n1.y}px`;
-      edgeEl.style.transform = `rotate(${angle}deg)`;
-      container.appendChild(edgeEl);
-
-      const label = document.createElement('div');
-      label.className = 'edge-weight';
-      label.textContent = edge.weight;
-      label.style.left = `${n1.x + dx/2}px`;
-      label.style.top = `${n1.y + dy/2}px`;
-      container.appendChild(label);
-    });
-  }
-
-  function drawNodes() {
-    nodes.forEach(node => {
-      const el = document.createElement('div');
-      el.className = 'node';
-      el.id = `node-${node.id}`;
-      el.style.left = `${node.x}px`;
-      el.style.top = `${node.y}px`;
-      el.textContent = node.id;
-
-      const distLabel = document.createElement('div');
-      distLabel.className = 'node-dist';
-      distLabel.id = `dist-${node.id}`;
-      distLabel.textContent = '∞';
-      el.appendChild(distLabel);
-
-      el.addEventListener('pointerdown', event => {
-        if (state !== 'IDLE') {
-          statusBanner.textContent = 'Reset first to edit node positions.';
-          return;
-        }
-
-        event.preventDefault();
-        const pointerId = event.pointerId;
-        el.setPointerCapture(pointerId);
-
-        const onMove = moveEvent => {
-          const rect = container.getBoundingClientRect();
-          const x = Math.max(24, Math.min(rect.width - 24, moveEvent.clientX - rect.left));
-          const y = Math.max(24, Math.min(rect.height - 24, moveEvent.clientY - rect.top));
-          node.x = x;
-          node.y = y;
-          renderGraph();
-          updateUI();
-        };
-
-        const onUp = () => {
-          window.removeEventListener('pointermove', onMove);
-          window.removeEventListener('pointerup', onUp);
-          syncGraphEditor();
-          statusBanner.textContent = `Moved node ${node.id}.`;
-        };
-
-        window.addEventListener('pointermove', onMove);
-        window.addEventListener('pointerup', onUp, { once: true });
-      });
-
-      container.appendChild(el);
-    });
-  }
-
-  function setupAlgorithm() {
-    relaxationChecks = [];
-    setPseudoLine('init-all');
-    nodes.forEach(n => {
-      distances[n.id] = Infinity;
-      previous[n.id] = null;
-    });
-    distances[startNode] = 0;
-    pq.push({ node: startNode, dist: 0 });
-    state = 'RUNNING';
-    setPseudoLine('seed-start');
-    updateUI();
-  }
-
-  function stepAlgorithm() {
-    if (state === 'IDLE') {
-      setupAlgorithm();
-      statusBanner.textContent = 'Algorithm initialized.';
-      liveBadge.textContent = 'Running';
-      liveBadge.classList.add('active');
-      return;
-    }
-
-    if (state === 'DONE') return;
-
-    if (pq.length === 0) {
-      state = 'DONE';
-      relaxationChecks = [];
-      currentNode = null;
-      setPseudoLine('done');
-      statusBanner.textContent = 'Algorithm complete. Shortest paths found.';
-      liveBadge.textContent = 'Done';
-      liveBadge.className = 'live-badge';
-      stopAuto();
-      updateUI();
-      return;
-    }
-
-    // Sort pq (simple array-based priority queue)
-    relaxationChecks = [];
-    setPseudoLine('while-loop');
-    pq.sort((a, b) => a.dist - b.dist);
-    const { node: u, dist } = pq.shift();
-    setPseudoLine('extract-min');
-
-    currentNode = u;
-    
-    if (visited.has(u)) {
-      relaxationChecks = [];
-      setPseudoLine('skip-visited');
-      statusBanner.textContent = `Node ${u} already visited, skipping.`;
-      updateUI();
-      return;
-    }
-
-    visited.add(u);
-    setPseudoLine('visit-u');
-    statusBanner.textContent = `Visiting node ${u} with distance ${dist}.`;
-
-    const neighbors = graph[u];
-    let relaxedAnyEdge = false;
-    for (let edge of neighbors) {
-      const v = edge.node;
-      const weight = edge.weight;
-      if (!visited.has(v)) {
-        setPseudoLine('scan-neighbors');
-        const distUBefore = distances[u];
-        const distVBefore = distances[v];
-        const alt = distances[u] + weight;
-        const updated = alt < distances[v];
-
-        relaxationChecks.push({
-          u,
-          v,
-          weight,
-          distUBefore,
-          distVBefore,
-          candidate: alt,
-          updated
+      // Pausa entre as atualizações e o próximo ExtractMin: as keys em H já
+      // estão atualizadas, mas o próximo vértice ainda não foi extraído.
+      if (H.size > 0) {
+        let summary;
+        if (unreachable) summary = `Como dist(${nodeRef(w)}) = ∞, nenhuma key muda.`;
+        else if (evaluated === 0) summary = `${nodeRef(w)} não tem arestas para vértices de <i>V − X</i>: nenhuma key muda.`;
+        else summary = `Todas as arestas de ${nodeRef(w)} para <i>V − X</i> foram avaliadas: as keys em <i>H</i> estão atualizadas.`;
+        snap({
+          phase: 'pause',
+          lines: [8],
+          msg: `${summary} <span class="tip"><i>H</i> não está vazia; o próximo passo é ExtractMin(<i>H</i>). Qual vértice será extraído?</span>`
         });
-
-        if (alt < distances[v]) {
-          distances[v] = alt;
-          previous[v] = u;
-          pq.push({ node: v, dist: alt });
-          relaxedAnyEdge = true;
-        }
       }
     }
 
-    setPseudoLine(relaxedAnyEdge ? 'relax-update' : 'scan-neighbors');
-
-    updateUI();
+    snap({
+      phase: 'done',
+      lines: [8, 16],
+      msg: `<b><i>H</i> está vazia: fim!</b> Cada dist(<i>v</i>) é a distância mínima de ${nodeRef(s)} até <i>v</i>; as arestas azuis formam a árvore de caminhos mínimos.`
+    });
+    return out;
   }
 
-  function updateUI() {
-    // Update nodes
-    nodes.forEach(n => {
-      const el = document.getElementById(`node-${n.id}`);
-      const distEl = document.getElementById(`dist-${n.id}`);
-      
-      el.className = 'node';
-      if (n.id === startNode) el.classList.add('start');
-      if (visited.has(n.id)) el.classList.add('visited');
-      if (n.id === currentNode) el.classList.add('current');
+  // ── Desenho do grafo (feito uma vez por grafo) ───────────────────────────
 
-      const d = distances[n.id];
-      distEl.textContent = d === Infinity || d === undefined ? '∞' : d;
+  function svgEl(tag, attrs, parent) {
+    const el = document.createElementNS(SVG_NS, tag);
+    Object.entries(attrs || {}).forEach(([k, v]) => el.setAttribute(k, v));
+    if (parent) parent.appendChild(el);
+    return el;
+  }
+
+  function edgeGeometry(g, e) {
+    const a = g.nodes[g.order.get(e.u)];
+    const b = g.nodes[g.order.get(e.v)];
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const len = Math.hypot(dx, dy);
+    const tail = g.directed ? R + ARROW : R;
+    const reciprocal = g.directed && g.edges.some(o => o.u === e.v && o.v === e.u);
+
+    if (!reciprocal) {
+      const ux = dx / len;
+      const uy = dy / len;
+      const x1 = a.x + ux * R;
+      const y1 = a.y + uy * R;
+      const x2 = b.x - ux * tail;
+      const y2 = b.y - uy * tail;
+      return {
+        d: `M${x1.toFixed(1)},${y1.toFixed(1)} L${x2.toFixed(1)},${y2.toFixed(1)}`,
+        lx: a.x + dx * e.t,
+        ly: a.y + dy * e.t
+      };
+    }
+    // Arcos u→v e v→u: curva cada um para um lado.
+    const off = len * 0.16;
+    const cx = (a.x + b.x) / 2 - (dy / len) * off;
+    const cy = (a.y + b.y) / 2 + (dx / len) * off;
+    const unit = (px, py) => { const l = Math.hypot(cx - px, cy - py); return [(cx - px) / l, (cy - py) / l]; };
+    const [sx, sy] = unit(a.x, a.y);
+    const [ex, ey] = unit(b.x, b.y);
+    const x1 = a.x + sx * R;
+    const y1 = a.y + sy * R;
+    const x2 = b.x + ex * tail;
+    const y2 = b.y + ey * tail;
+    return {
+      d: `M${x1.toFixed(1)},${y1.toFixed(1)} Q${cx.toFixed(1)},${cy.toFixed(1)} ${x2.toFixed(1)},${y2.toFixed(1)}`,
+      lx: 0.25 * a.x + 0.5 * cx + 0.25 * b.x,
+      ly: 0.25 * a.y + 0.5 * cy + 0.25 * b.y
+    };
+  }
+
+  // Escolhe, ao redor de cada vértice, direções livres de arestas para o
+  // rótulo de distância e para a etiqueta "origem".
+  const SPOTS = [-90, -45, -135, 0, 180, 45, 135, 90].map(deg => (deg * Math.PI) / 180);
+
+  function freeDirections(g, n) {
+    const dirs = [];
+    g.edges.forEach(e => {
+      if (e.u !== n.id && e.v !== n.id) return;
+      const other = g.nodes[g.order.get(e.u === n.id ? e.v : e.u)];
+      dirs.push(Math.atan2(other.y - n.y, other.x - n.x));
+    });
+    const gap = a => (dirs.length
+      ? Math.min(...dirs.map(d => { const x = Math.abs(a - d) % (2 * Math.PI); return Math.min(x, 2 * Math.PI - x); }))
+      : Math.PI);
+    // Ordem de preferência em SPOTS desempata direções igualmente livres.
+    return SPOTS.map((a, i) => ({ a, score: Math.min(gap(a), Math.PI / 2) - i * 1e-3 }))
+      .sort((p, q) => q.score - p.score)
+      .map(p => p.a);
+  }
+
+  function buildGraph(g) {
+    const svg = ui.svg;
+    svg.innerHTML = '';
+    svg.classList.toggle('directed', g.directed);
+
+    const xs = g.nodes.map(n => n.x);
+    const ys = g.nodes.map(n => n.y);
+    const minX = Math.min(...xs) - 120;
+    const maxX = Math.max(...xs) + 120;
+    const minY = Math.min(...ys) - 80;
+    const maxY = Math.max(...ys) + 72;
+    svg.setAttribute('viewBox', `${minX} ${minY} ${maxX - minX} ${maxY - minY}`);
+
+    const defs = svgEl('defs', {}, svg);
+    ['base', 'inside', 'cand', 'tree', 'active', 'path'].forEach(kind => {
+      const marker = svgEl('marker', {
+        id: `arrow-${kind}`, viewBox: '0 0 10 10', refX: '0', refY: '5',
+        markerWidth: ARROW, markerHeight: ARROW, markerUnits: 'userSpaceOnUse', orient: 'auto'
+      }, defs);
+      svgEl('path', { d: 'M0,0 L10,5 L0,10 z', class: `arrow arrow-${kind}` }, marker);
     });
 
-    // Update edges
-    edges.forEach(edge => {
-      const el = document.getElementById(`edge-${edge.source}-${edge.target}`);
-      if (!el) return;
-      el.className = 'edge';
-      
-      // If part of the shortest path tree
-      const isTreeEdge = previous[edge.target] === edge.source || previous[edge.source] === edge.target;
-      if (isTreeEdge && (visited.has(edge.source) || visited.has(edge.target))) {
-        el.classList.add('visited');
-      }
+    const halos = svgEl('g', { class: 'layer-halos' }, svg);
+    const edgeLayer = svgEl('g', { class: 'layer-edges' }, svg);
+    const labelLayer = svgEl('g', { class: 'layer-labels' }, svg);
+    const nodeLayer = svgEl('g', { class: 'layer-nodes' }, svg);
 
-      if (currentNode && (edge.source === currentNode || edge.target === currentNode)) {
-        el.classList.add('active');
-      }
+    const edges = g.edges.map(e => {
+      const geo = edgeGeometry(g, e);
+      const path = svgEl('path', { d: geo.d, class: 'edge' }, edgeLayer);
+      const label = svgEl('text', { x: geo.lx.toFixed(1), y: geo.ly.toFixed(1), class: 'weight' }, labelLayer);
+      label.textContent = e.w;
+      return { path, label };
     });
 
-    // Update Priority Queue and Visited Sets
-    const visitedDisplay = document.getElementById('visitedDisplay');
-    // pqDisplay is already defined at the top
+    const nodes = {};
+    g.nodes.forEach(n => {
+      const halo = svgEl('circle', { cx: n.x, cy: n.y, r: R + 20, class: 'halo' }, halos);
+      const group = svgEl('g', { class: 'node', 'data-id': n.id }, nodeLayer);
+      svgEl('circle', { cx: n.x, cy: n.y, r: R + 7, class: 'ring' }, group);
+      svgEl('circle', { cx: n.x, cy: n.y, r: R, class: 'body' }, group);
+      const label = svgEl('text', { x: n.x, y: n.y, class: 'label' }, group);
+      label.textContent = n.id;
 
-    if (visitedDisplay) {
-      const visitedArray = Array.from(visited);
-      visitedDisplay.innerHTML = visitedArray.length === 0 ? '∅' : `{ ${visitedArray.join(', ')} }`;
-    }
+      const dirs = freeDirections(g, n);
+      const badgeAngle = dirs[0];
+      const badge = svgEl('g', { class: 'badge' }, group);
+      const badgeRect = svgEl('rect', { rx: 8, ry: 8, height: 28 }, badge);
+      const badgeText = svgEl('text', {}, badge);
 
-    if (pqDisplay) {
-      pqDisplay.innerHTML = `[ ${pq.map(item => `(${item.node}: ${item.dist})`).join(', ')} ]`;
-    }
+      if (n.id === g.source) {
+        const apart = a => Math.abs(Math.atan2(Math.sin(a - badgeAngle), Math.cos(a - badgeAngle))) >= Math.PI / 2;
+        const a = dirs.find(apart);
+        const tag = svgEl('text', {
+          x: (n.x + Math.cos(a) * (R + 22 + 26 * Math.abs(Math.cos(a)))).toFixed(1),
+          y: (n.y + Math.sin(a) * (R + 20)).toFixed(1),
+          class: 'source-tag'
+        }, group);
+        tag.textContent = 'origem';
+      }
 
-    renderDistanceTable();
-    renderPseudoCode();
-    renderRelaxationExplain();
+      group.addEventListener('mouseenter', () => setHover(n.id));
+      group.addEventListener('mouseleave', () => setHover(null));
+      group.addEventListener('click', () => pickSource(n.id));
+      nodes[n.id] = { group, halo, badge, badgeRect, badgeText, badgeAngle, x: n.x, y: n.y };
+    });
+
+    dom = { nodes, edges };
   }
 
-  function formatDistanceValue(value) {
-    return value === Infinity || value === undefined ? '∞' : value;
+  // ── Desenho de um passo ──────────────────────────────────────────────────
+
+  function pathTo(state, id) {
+    const nodes = [id];
+    const edges = [];
+    let cur = id;
+    while (state.pred[cur] !== undefined) {
+      edges.push(state.predEdge[cur]);
+      cur = state.pred[cur];
+      nodes.unshift(cur);
+    }
+    return { nodes, edges };
   }
 
-  function renderRelaxationExplain() {
-    if (!relaxExplain) return;
+  function renderGraph(state) {
+    const inX = new Set(state.X);
+    const started = state.phase !== 'input';
+    const hoverPath = hovered && started && (state.key[hovered] !== INF)
+      ? new Set(pathTo(state, hovered).edges) : new Set();
 
-    if (!currentNode || relaxationChecks.length === 0) {
-      relaxExplain.textContent = 'Run a step to see dist[u] + w and dist[v] values for each neighbor check.';
+    const treeEdge = new Map(); // aresta -> vértice cujo pred ela representa
+    Object.entries(state.predEdge).forEach(([v, e]) => treeEdge.set(e, v));
+
+    graph.edges.forEach((e, i) => {
+      let kind = 'base';
+      if (i === state.edge) kind = 'active';
+      else if (hoverPath.has(i)) kind = 'path';
+      else if (treeEdge.has(i)) kind = inX.has(treeEdge.get(i)) ? 'tree' : 'cand';
+      else if (inX.has(e.u) && inX.has(e.v)) kind = 'inside';
+      const { path, label } = dom.edges[i];
+      path.setAttribute('class', `edge ${kind}`);
+      label.setAttribute('class', `weight ${kind}`);
+      if (graph.directed) path.setAttribute('marker-end', `url(#arrow-${kind})`);
+    });
+
+    graph.nodes.forEach(n => {
+      const d = dom.nodes[n.id];
+      const classes = ['node'];
+      if (inX.has(n.id)) classes.push('in-x');
+      if (n.id === state.wStar) classes.push('current');
+      if (n.id === state.target) classes.push('target');
+      if (n.id === state.changed) classes.push('changed');
+      if (n.id === hovered) classes.push('hovered');
+      d.group.setAttribute('class', classes.join(' '));
+      d.halo.setAttribute('class', inX.has(n.id) ? 'halo on' : 'halo');
+
+      if (!started) {
+        d.badge.setAttribute('class', 'badge hidden');
+        return;
+      }
+      const value = inX.has(n.id) ? state.dist[n.id] : state.key[n.id];
+      d.badgeText.textContent = fmt(value);
+      const width = 20 + 12 * d.badgeText.textContent.length;
+      const ca = Math.cos(d.badgeAngle);
+      const cx = d.x + ca * (R + 20 + Math.abs(ca) * (width / 2 - 12));
+      const cy = d.y + Math.sin(d.badgeAngle) * (R + 20);
+      d.badgeText.setAttribute('x', cx.toFixed(1));
+      d.badgeText.setAttribute('y', cy.toFixed(1));
+      d.badgeRect.setAttribute('x', (cx - width / 2).toFixed(1));
+      d.badgeRect.setAttribute('y', (cy - 14).toFixed(1));
+      d.badgeRect.setAttribute('width', width);
+      let badgeClass = 'badge';
+      if (n.id === state.changed) badgeClass += ' changed';
+      else if (n.id === state.wStar) badgeClass += ' current';
+      else if (inX.has(n.id)) badgeClass += ' in-x';
+      d.badge.setAttribute('class', badgeClass);
+    });
+
+    ui.svg.classList.toggle('pickable', state.phase === 'input');
+  }
+
+  function renderSets(state) {
+    const inX = new Set(state.X);
+    const list = ids => (ids.length ? `{ ${ids.map(nodeRef).join(', ')} }` : '∅');
+    ui.setX.innerHTML = list(state.X);
+    ui.setRest.innerHTML = list(graph.nodes.map(n => n.id).filter(id => !inX.has(id)));
+  }
+
+  function renderHeap(state) {
+    if (state.phase === 'input') {
+      ui.heap.innerHTML = '<p class="empty">ainda não inicializada</p>';
       return;
     }
-
-    let html = '<table class="relaxation-table">';
-    html += '<thead><tr><th>u</th><th>v</th><th>dist[u]</th><th>w</th><th>candidate</th><th>dist[v]</th><th>result</th></tr></thead><tbody>';
-
-    relaxationChecks.forEach(check => {
-      const resultClass = check.updated ? 'relax-updated' : 'relax-kept';
-      const resultLabel = check.updated ? 'updated' : 'kept';
-      html += `<tr><td>${check.u}</td><td>${check.v}</td><td>${formatDistanceValue(check.distUBefore)}</td><td>${check.weight}</td><td>${formatDistanceValue(check.candidate)}</td><td>${formatDistanceValue(check.distVBefore)}</td><td class="${resultClass}">${resultLabel}</td></tr>`;
-    });
-
-    html += '</tbody></table>';
-    relaxExplain.innerHTML = html;
-  }
-
-  function renderDistanceTable() {
-    if (!distTable) return;
-
-    let tableHtml = '<table class="dist-table">';
-    tableHtml += '<thead><tr><th>Node</th><th>Dist</th><th>Prev</th></tr></thead><tbody>';
-
-    nodes.forEach(n => {
-      const d = distances[n.id] === Infinity || distances[n.id] === undefined ? '∞' : distances[n.id];
-      const p = previous[n.id] || '-';
-      const rowClass = n.id === currentNode ? 'dist-row-current' : (visited.has(n.id) ? 'dist-row-visited' : '');
-      tableHtml += `<tr class="${rowClass}"><td><strong>${n.id}</strong></td><td>${d}</td><td>${p}</td></tr>`;
-    });
-
-    tableHtml += '</tbody></table>';
-    distTable.innerHTML = tableHtml;
-  }
-
-  function renderPseudoCode() {
-    if (!pseudoCode) return;
-
-    const codeHtml = pseudoLines
-      .map((line, index) => {
-        const isActive = line.key === activePseudoLine ? 'active' : '';
-        return `<li class="${isActive}"><span class="pseudo-line-no">${index + 1}</span><span class="pseudo-line-text">${line.text}</span></li>`;
-      })
-      .join('');
-
-    pseudoCode.innerHTML = `<ol class="pseudo-list">${codeHtml}</ol>`;
-  }
-
-  function toggleAuto() {
-    if (autoTimer) {
-      stopAuto();
-    } else {
-      autoBtn.textContent = 'Stop Auto';
-      autoBtn.classList.add('active');
-      autoTimer = setInterval(() => {
-        stepAlgorithm();
-        if (state === 'DONE') stopAuto();
-      }, AUTO_RUN_DELAY_MS);
+    const sorted = state.H.slice().sort((a, b) =>
+      (state.key[a] - state.key[b]) || (graph.order.get(a) - graph.order.get(b)));
+    const chips = [];
+    if (state.extracted) {
+      chips.push(`<div class="chip leaving" title="extraído agora"><span class="chip-id">${state.extracted.id}</span><span class="chip-key">${fmt(state.extracted.key)}</span></div>`);
     }
+    sorted.forEach((id, i) => {
+      const cls = ['chip'];
+      if (i === 0) cls.push('min');
+      if (id === state.changed) cls.push('changed');
+      if (id === state.target && id !== state.changed) cls.push('target');
+      chips.push(`<div class="${cls.join(' ')}"><span class="chip-id">${id}</span><span class="chip-key">${fmt(state.key[id])}</span></div>`);
+    });
+    ui.heap.innerHTML = chips.length ? chips.join('') : '<p class="empty">vazia</p>';
+  }
+
+  function renderTable(state) {
+    const inX = new Set(state.X);
+    const started = state.phase !== 'input';
+    ui.distBody.innerHTML = graph.nodes.map(n => {
+      const id = n.id;
+      const cls = [inX.has(id) ? 'in-x' : 'rest'];
+      if (id === state.wStar) cls.push('current');
+      if (id === state.changed) cls.push('changed');
+      if (id === hovered) cls.push('hovered');
+      let value = '–';
+      let pred = '–';
+      let path = '';
+      if (started) {
+        const v = inX.has(id) ? state.dist[id] : state.key[id];
+        value = id === state.changed
+          ? `<s>${fmt(state.old)}</s> <b>${fmt(v)}</b>`
+          : (inX.has(id) ? `<b>${fmt(v)}</b>` : fmt(v));
+        pred = state.pred[id] !== undefined ? state.pred[id] : '–';
+        if (v !== INF) path = pathTo(state, id).nodes.join(' → ');
+      }
+      return `<tr class="${cls.join(' ')}" data-id="${id}"><td class="col-v"><span class="dot"></span>${id}</td><td class="col-key">${value}</td><td class="col-pred">${pred}</td><td class="col-path">${path}</td></tr>`;
+    }).join('');
+  }
+
+  function renderPseudo(state) {
+    ui.pseudoPanel.querySelectorAll('li[data-line]').forEach(li => {
+      li.classList.toggle('hl', state.lines.includes(Number(li.dataset.line)));
+    });
+  }
+
+  function render() {
+    const state = steps[current];
+    renderGraph(state);
+    renderSets(state);
+    renderHeap(state);
+    renderTable(state);
+    renderPseudo(state);
+    ui.message.innerHTML = state.msg;
+    ui.stepCounter.textContent = `Passo ${current} de ${steps.length - 1}`;
+    ui.progressBar.style.width = `${(100 * current) / (steps.length - 1)}%`;
+    ui.prevBtn.disabled = current === 0;
+    ui.resetBtn.disabled = current === 0;
+    ui.nextBtn.disabled = current === steps.length - 1;
+  }
+
+  // ── Interação ────────────────────────────────────────────────────────────
+
+  function setHover(id) {
+    if (hovered === id) return;
+    hovered = id;
+    const state = steps[current];
+    renderGraph(state);
+    ui.distBody.querySelectorAll('tr').forEach(tr => tr.classList.toggle('hovered', tr.dataset.id === id));
+  }
+
+  function goTo(index) {
+    current = Math.max(0, Math.min(steps.length - 1, index));
+    render();
+    if (current === steps.length - 1) stopAuto();
   }
 
   function stopAuto() {
-    if (autoTimer) {
-      clearInterval(autoTimer);
-      autoTimer = null;
-    }
-    autoBtn.textContent = 'Auto run';
-    autoBtn.classList.remove('active');
+    if (timer) clearInterval(timer);
+    timer = null;
+    ui.autoBtn.innerHTML = '▶▶ Automático';
+    ui.autoBtn.classList.remove('active');
   }
 
-  stepBtn.addEventListener('click', () => {
+  function startAuto() {
+    if (current === steps.length - 1) goTo(0);
     stopAuto();
-    stepAlgorithm();
-  });
-
-  autoBtn.addEventListener('click', toggleAuto);
-
-  resetBtn.addEventListener('click', () => {
-    stopAuto();
-    resetAlgorithmState();
-    statusBanner.textContent = 'Reset to start.';
-    updateUI();
-  });
-
-  newGraphBtn.addEventListener('click', () => {
-    stopAuto();
-    initGraph();
-  });
-
-  nodeCountInput?.addEventListener('change', () => {
-    getRandomGraphOptions();
-  });
-
-  densityRange?.addEventListener('input', () => {
-    updateDensityDisplay();
-  });
-
-  function populateExampleSelect() {
-    if (!exampleGraphSelect) return;
-
-    const options = Object.entries(exampleGraphs)
-      .map(([key, value]) => `<option value="${key}">${value.label}</option>`)
-      .join('');
-
-    exampleGraphSelect.innerHTML = options;
-    exampleGraphSelect.value = 'classic';
+    timer = setInterval(() => goTo(current + 1), Number(ui.speedSelect.value));
+    ui.autoBtn.innerHTML = '❚❚ Pausar';
+    ui.autoBtn.classList.add('active');
   }
 
-  loadExampleBtn?.addEventListener('click', () => {
-    const selected = exampleGraphSelect?.value;
-    if (!selected || !exampleGraphs[selected]) return;
-    loadGraphDefinition(exampleGraphs[selected].graph, `Loaded example: ${exampleGraphs[selected].label}.`);
-  });
-
-  applyGraphBtn?.addEventListener('click', () => {
-    try {
-      const parsed = JSON.parse(graphJsonInput.value);
-      loadGraphDefinition(parsed, 'Custom graph applied.');
-    } catch (error) {
-      statusBanner.textContent = `Could not apply graph: ${error.message}`;
-    }
-  });
-
-  exportGraphBtn?.addEventListener('click', () => {
-    syncGraphEditor();
-    statusBanner.textContent = 'Current graph exported to the JSON editor.';
-  });
-
-  graphFileInput?.addEventListener('change', async event => {
-    const file = event.target.files && event.target.files[0];
-    if (!file) return;
-
-    try {
-      const text = await file.text();
-      const parsed = JSON.parse(text);
-      loadGraphDefinition(parsed, `Loaded graph file: ${file.name}.`);
-    } catch (error) {
-      statusBanner.textContent = `Could not load file: ${error.message}`;
-    } finally {
-      event.target.value = '';
-    }
-  });
-
-  // Modals
-  const helpBtn = document.getElementById('helpBtn');
-  const helpOverlay = document.getElementById('helpOverlay');
-  const helpCloseBtn = document.getElementById('helpCloseBtn');
-  
-  const referencesBtn = document.getElementById('referencesBtn');
-  const referencesOverlay = document.getElementById('referencesOverlay');
-  const referencesCloseBtn = document.getElementById('referencesCloseBtn');
-  
-  helpBtn.addEventListener('click', () => helpOverlay.hidden = false);
-  helpCloseBtn.addEventListener('click', () => helpOverlay.hidden = true);
-  
-  referencesBtn.addEventListener('click', () => referencesOverlay.hidden = false);
-  referencesCloseBtn.addEventListener('click', () => referencesOverlay.hidden = true);
-  
-  // Theme Toggle
-  const themeToggle = document.getElementById('themeToggle');
-  
-  // Load saved theme
-  if (localStorage.getItem('theme') === 'dark') {
-    document.body.dataset.theme = 'dark';
+  function loadGraph(def) {
+    stopAuto();
+    hovered = null;
+    graph = normalize(def);
+    steps = buildSteps(graph);
+    buildGraph(graph);
+    ui.graphName.textContent = `${graph.name} · ${graph.description}`;
+    goTo(0);
   }
-  
-  themeToggle.addEventListener('click', () => {
-    if (document.body.dataset.theme === 'dark') {
-      document.body.dataset.theme = '';
-      localStorage.setItem('theme', 'light');
-    } else {
-      document.body.dataset.theme = 'dark';
-      localStorage.setItem('theme', 'dark');
+
+  function pickSource(id) {
+    if (steps[current].phase !== 'input' || id === graph.source) return;
+    const def = {
+      name: graph.name,
+      description: graph.description,
+      directed: graph.directed,
+      source: id,
+      nodes: graph.nodes,
+      edges: graph.edges.map(e => [e.u, e.v, e.w, e.t])
+    };
+    loadGraph(def);
+  }
+
+  function toggleMenu(open) {
+    const show = open === undefined ? ui.graphsMenu.hidden : open;
+    ui.graphsMenu.hidden = !show;
+    ui.graphsBtn.setAttribute('aria-expanded', String(show));
+  }
+
+  function togglePseudo() {
+    const show = ui.pseudoPanel.hidden;
+    ui.pseudoPanel.hidden = !show;
+    ui.layout.classList.toggle('with-pseudo', show);
+    ui.pseudoBtn.setAttribute('aria-pressed', String(show));
+    ui.pseudoBtn.classList.toggle('active', show);
+  }
+
+  EXAMPLES.forEach(ex => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'example';
+    btn.innerHTML = `<span class="example-name">${ex.name}</span><span class="example-desc">${ex.description}</span>`;
+    btn.addEventListener('click', () => { loadGraph(ex); toggleMenu(false); });
+    ui.exampleList.appendChild(btn);
+  });
+
+  ui.nodeCount.addEventListener('input', () => { ui.nodeCountValue.textContent = ui.nodeCount.value; });
+  ui.randomBtn.addEventListener('click', () => {
+    const g = randomGraph(Number(ui.nodeCount.value), ui.directedCheck.checked);
+    if (g) loadGraph(g);
+    toggleMenu(false);
+  });
+
+  ui.graphsBtn.addEventListener('click', event => { event.stopPropagation(); toggleMenu(); });
+  ui.graphsMenu.addEventListener('click', event => event.stopPropagation());
+  document.addEventListener('click', () => toggleMenu(false));
+
+  ui.pseudoBtn.addEventListener('click', togglePseudo);
+  ui.helpBtn.addEventListener('click', () => ui.helpDialog.showModal());
+  ui.resetBtn.addEventListener('click', () => { stopAuto(); goTo(0); });
+  ui.prevBtn.addEventListener('click', () => { stopAuto(); goTo(current - 1); });
+  ui.nextBtn.addEventListener('click', () => { stopAuto(); goTo(current + 1); });
+  ui.autoBtn.addEventListener('click', () => (timer ? stopAuto() : startAuto()));
+  ui.speedSelect.addEventListener('change', () => { if (timer) startAuto(); });
+
+  ui.distBody.addEventListener('mouseover', event => {
+    const tr = event.target.closest('tr');
+    if (tr) setHover(tr.dataset.id);
+  });
+  ui.distBody.addEventListener('mouseleave', () => setHover(null));
+
+  document.addEventListener('keydown', event => {
+    if (ui.helpDialog.open || event.altKey || event.ctrlKey || event.metaKey) return;
+    const tag = event.target.tagName;
+    if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+    // Espaço/Enter num botão focado já acionam o próprio botão.
+    if (tag === 'BUTTON' && (event.key === ' ' || event.key === 'Enter')) return;
+    switch (event.key) {
+      case 'ArrowRight':
+      case ' ':
+        event.preventDefault(); stopAuto(); goTo(current + 1); break;
+      case 'ArrowLeft':
+        event.preventDefault(); stopAuto(); goTo(current - 1); break;
+      case 'Home':
+        event.preventDefault(); stopAuto(); goTo(0); break;
+      case 'End':
+        event.preventDefault(); stopAuto(); goTo(steps.length - 1); break;
+      case 'a': case 'A':
+        timer ? stopAuto() : startAuto(); break;
+      case 'p': case 'P':
+        togglePseudo(); break;
+      case 'Escape':
+        toggleMenu(false); break;
+      default:
     }
   });
 
-  populateExampleSelect();
-  updateDensityDisplay();
-  setupBoardResizeHandle();
-
-  // Small delay to ensure container dimensions are set
-  setTimeout(() => {
-    loadGraphDefinition(exampleGraphs.classic.graph, 'Loaded default example graph. Click "Run step" to start.');
-  }, 100);
-});
+  // Parâmetros opcionais na URL, úteis para linkar a partir dos slides:
+  // ?grafo=sssp&passo=5&pseudo=1  ou  ?grafo=aleatorio&n=8&dir=1
+  const params = new URLSearchParams(window.location.search);
+  const n = Math.max(4, Math.min(12, Number(params.get('n')) || 8));
+  const initial = params.get('grafo') === 'aleatorio'
+    ? randomGraph(n, params.get('dir') === '1')
+    : EXAMPLES.find(ex => ex.id === params.get('grafo'));
+  loadGraph(initial || EXAMPLES[0]);
+  if (params.has('passo')) goTo(Number(params.get('passo')) || 0);
+  if (params.get('pseudo') === '1') togglePseudo();
+})();

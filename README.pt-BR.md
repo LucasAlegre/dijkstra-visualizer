@@ -13,21 +13,14 @@ A ferramenta foi construída para tornar visíveis as decisões do algoritmo por
 
 ## ✨ Funcionalidades
 
-### Funcionalidade principal
-- Geração de **grafos aleatórios** para testar o algoritmo.
-- Execução passo a passo com:
-  - **Executar passo**
-  - **Execução automática**
-  - velocidades configuráveis (Lento, Normal, Rápido)
-  - **Resetar** para começar de novo.
-
-### Visualizações sincronizadas
-- **Visualização em grafo** destacando o nó atual, nós visitados e caminhos ativos.
-- **Visualização da estrutura de dados** mostrando a Fila de Prioridade e a Tabela de Distâncias evoluindo a cada passo.
-
-### Usabilidade e UI
-- Layout voltado para projeção em sala, com tipografia grande e estados visuais contrastantes.
-- Totalmente no cliente, sem backend e sem framework externo.
+- **Grafo grande no centro**, com os vértices em *X* (azuis, distância definitiva) claramente separados dos vértices em *V − X* (brancos, key provisória); o vértice extraído (*w\**) e a aresta avaliada aparecem em laranja.
+- **Fila de prioridade *H*** ordenada por key, destacando o mínimo, o vértice extraído e as keys atualizadas.
+- **Tabela de distâncias** com key/dist, predecessor e caminho de cada vértice; passe o mouse para ver o caminho no grafo.
+- **Pseudocódigo** (o mesmo dos slides, versão com heap), aberto por um botão, com a linha executada em destaque.
+- **Execução passo a passo**: avançar, voltar, reiniciar e modo automático com três velocidades (teclas <kbd>→</kbd> <kbd>←</kbd> <kbd>espaço</kbd> <kbd>A</kbd> <kbd>P</kbd>).
+- **Grafos de exemplo** (incluindo os das aulas) e **grafos aleatórios** planares, direcionados ou não; no passo inicial, clique em um vértice para escolher a origem.
+- Links diretos para um exemplo/passo: `?grafo=sssp&passo=5&pseudo=1` ou `?grafo=aleatorio&n=8&dir=1`.
+- Paleta e fonte (Lexend) iguais às dos slides da disciplina; totalmente no cliente, sem backend.
 
 ---
 
@@ -42,9 +35,6 @@ A ferramenta foi construída para tornar visíveis as decisões do algoritmo por
 
 **Desenvolvido por**  
 **Lucas Nunes Alegre**
-
-**Estilo Visual Original por**  
-**Prof. Bruno Iochins Grisci** (baseado em `scheduling-algorithms`)
 
 **Nota de desenvolvimento**  
 Esta ferramenta foi criada com a assistência de **IA Generativa**.

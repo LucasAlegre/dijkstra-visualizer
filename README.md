@@ -13,21 +13,14 @@ The tool was built to make algorithmic decisions visible through synchronized gr
 
 ## ✨ Features
 
-### Core functionality
-- Generate **random graphs** to test the algorithm.
-- Step through each execution with:
-  - **Run step**
-  - **Auto run**
-  - configurable playback speeds (Slow, Normal, Fast)
-  - **Reset** to start over.
-
-### Synchronized visualizations
-- **Graph view** highlighting the current node, visited nodes, and active paths.
-- **Data structure view** showing the Priority Queue and the Distance Table evolving at each step.
-
-### Usability & UI
-- Projector-oriented layout with large typography and high-contrast visual states.
-- Fully client-side, with no backend or external framework.
+- **Large graph in the center**, with nodes in *X* (blue, final distance) clearly separated from nodes in *V − X* (white, tentative key); the extracted node (*w\**) and the edge being relaxed are shown in orange.
+- **Priority queue *H*** sorted by key, highlighting the minimum, the extracted node and updated keys.
+- **Distance table** with key/dist, predecessor and path for each node; hover to see the path on the graph.
+- **Pseudocode** (same heap-based version as the course slides), toggled by a button, with the current line highlighted.
+- **Step-by-step execution**: forward, back, reset and auto-run with three speeds (keys <kbd>→</kbd> <kbd>←</kbd> <kbd>space</kbd> <kbd>A</kbd> <kbd>P</kbd>).
+- **Example graphs** (including the ones from the lectures) and planar **random graphs**, directed or undirected; on the initial step, click a node to make it the source.
+- Direct links to an example/step: `?grafo=sssp&passo=5&pseudo=1` or `?grafo=aleatorio&n=8&dir=1`.
+- Colors and font (Lexend) match the course slides; the interface is in Portuguese. Fully client-side, no backend.
 
 ---
 
@@ -42,9 +35,6 @@ The tool was built to make algorithmic decisions visible through synchronized gr
 
 **Developed by**  
 **Lucas Nunes Alegre**
-
-**Original Style & UI Layout by**  
-**Prof. Bruno Iochins Grisci** (from `scheduling-algorithms`)
 
 **Development note**  
 This webtool was created with the assistance of **Generative AI**.
