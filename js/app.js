@@ -65,23 +65,28 @@
     return { name: def.name, description: def.description, directed: def.directed, source: def.source, nodes, edges, order, adj };
   }
 
-  // ── Execução (pseudocódigo do slide DijkstraHeap, aula 18) ──────────────
+  // ── Execução (pseudocódigo DijkstraHeap do slide da aula 18) ────────────
+  // O heap guarda pares (dist, v) e começa só com (0, s). Melhorar dist(v)
+  // insere um par novo; o antigo continua no heap, mas fica obsoleto e é
+  // descartado quando sair (v já estará em X).
 
   function buildSteps(g) {
     const s = g.source;
     const ids = g.nodes.map(n => n.id);
-    const key = {};
     const dist = {};
     const pred = {};
     const predEdge = {};
     const X = [];
-    const H = new Set();
+    const inX = new Set();
+    const H = [];   // pares { d, v, seq }; seq desempata pela ordem de inserção
+    let seq = 0;
     const out = [];
 
     const snap = extra => out.push(Object.assign({
-      key: { ...key }, dist: { ...dist }, pred: { ...pred }, predEdge: { ...predEdge },
-      X: X.slice(), H: Array.from(H),
-      wStar: null, target: null, edge: null, changed: null, old: null, extracted: null
+      dist: { ...dist }, pred: { ...pred }, predEdge: { ...predEdge },
+      X: X.slice(), H: H.map(p => ({ ...p })),
+      wStar: null, target: null, edge: null, changed: null, old: null,
+      extracted: null, inserted: null, stale: null
     }, extra));
 
     const m = g.edges.length;
@@ -92,74 +97,91 @@
         `<b>Saída:</b> dist(<i>v</i>) para todo <i>v</i> ∈ <i>V</i>. <span class="tip">Clique em um vértice para mudar a origem.</span>`
     });
 
-    ids.forEach(id => { key[id] = id === s ? 0 : INF; H.add(id); });
+    ids.forEach(id => { dist[id] = id === s ? 0 : INF; });
+    H.push({ d: 0, v: s, seq: seq++ });
     snap({
       phase: 'init',
-      lines: [3, 4, 5, 6, 7],
-      msg: `<b>Inicialização:</b> <i>X</i> = ∅, key(${nodeRef(s)}) = 0 e key(<i>v</i>) = ∞ para os demais. Todos os vértices entram em <i>H</i>.`
+      lines: [3, 4, 5, 6],
+      inserted: 0,
+      msg: `<b>Inicialização:</b> <i>X</i> = ∅, dist(${nodeRef(s)}) = 0 e dist(<i>v</i>) = ∞ para os demais. <i>H</i> começa <b>apenas</b> com o par (0, ${nodeRef(s)}).`
     });
 
-    while (H.size > 0) {
-      let w = null;
-      H.forEach(id => {
-        if (w === null || key[id] < key[w] || (key[id] === key[w] && g.order.get(id) < g.order.get(w))) w = id;
-      });
-      H.delete(w);
-      X.push(w);
-      dist[w] = key[w];
-      const unreachable = dist[w] === INF;
+    while (H.length > 0) {
+      let k = 0;
+      H.forEach((p, i) => { if (p.d < H[k].d || (p.d === H[k].d && p.seq < H[k].seq)) k = i; });
+      const [{ d, v: u }] = H.splice(k, 1);
+      const pair = `(${fmt(d)}, ${nodeRef(u)})`;
+
+      if (inX.has(u)) {
+        snap({
+          phase: 'stale',
+          lines: [7, 8, 9, 10],
+          stale: u,
+          extracted: { d, v: u, stale: true },
+          msg: `<b>ExtractMin(<i>H</i>)</b> = ${pair}. Como ${nodeRef(u)} já está em <i>X</i>, o par é <b>obsoleto</b>: descartado (<b>continue</b>).`
+        });
+        continue;
+      }
+
+      inX.add(u);
+      X.push(u);
       snap({
         phase: 'extract',
-        lines: [8, 9, 10, 11],
-        wStar: w,
-        extracted: { id: w, key: key[w] },
-        msg: `<b>ExtractMin(<i>H</i>)</b> = ${nodeRef(w)}, com key ${fmt(key[w])}. ${nodeRef(w)} sai de <i>H</i> e entra em <i>X</i>: dist(${nodeRef(w)}) = <b>${fmt(dist[w])}</b>.` +
-          (unreachable ? ` Como a key é ∞, ${nodeRef(w)} não é alcançável a partir de ${nodeRef(s)}.` : '')
+        lines: [7, 8, 9, 11],
+        wStar: u,
+        extracted: { d, v: u, stale: false },
+        msg: `<b>ExtractMin(<i>H</i>)</b> = ${pair}. ${nodeRef(u)} ∉ <i>X</i>: ${nodeRef(u)} entra em <i>X</i> com dist(${nodeRef(u)}) = <b>${fmt(d)}</b>.`
       });
-      let evaluated = 0;
-      for (const { to: y, w: len, edge } of unreachable ? [] : g.adj.get(w)) {
-        if (!H.has(y)) continue; // y já está em X
-        evaluated++;
-        const old = key[y];
-        const cand = dist[w] + len;
+
+      for (const { to: v, w: len, edge } of g.adj.get(u)) {
+        const old = dist[v];
+        const cand = d + len;
         const better = cand < old;
+        let inserted = null;
         if (better) {
-          key[y] = cand;
-          pred[y] = w;
-          predEdge[y] = edge;
+          dist[v] = cand;
+          pred[v] = u;
+          predEdge[v] = edge;
+          inserted = seq;
+          H.push({ d: cand, v, seq: seq++ });
         }
+        const test = `Aresta (${nodeRef(u)}, ${nodeRef(v)}): <i>d</i> + <i>ℓ</i> = ${d} + ${len} = ${cand}`;
+        const msg = better
+          ? `${test} &lt; dist(${nodeRef(v)}) = ${fmt(old)}, então dist(${nodeRef(v)}) = <b>${cand}</b> e Insert(<i>H</i>, (${cand}, ${nodeRef(v)})). <span class="good">Atualizada!</span>` +
+            (old !== INF ? ` O par antigo (${old}, ${nodeRef(v)}) fica <b>obsoleto</b>.` : '')
+          : `${test} ≥ dist(${nodeRef(v)}) = ${fmt(old)}: nada muda` + (inX.has(v) ? ` (${nodeRef(v)} já está em <i>X</i>).` : '.');
         snap({
           phase: 'relax',
-          lines: [12, 13, 14, 15],
-          wStar: w,
-          target: y,
+          lines: better ? [12, 13, 14, 15] : [12, 13],
+          wStar: u,
+          target: v,
           edge,
-          changed: better ? y : null,
+          changed: better ? v : null,
           old,
-          msg: `Aresta (${nodeRef(w)}, ${nodeRef(y)}): key(${nodeRef(y)}) = min{${fmt(old)}, ${dist[w]} + ${len}} = <b>${fmt(key[y])}</b> — ` +
-            (better ? '<span class="good">atualizada!</span>' : 'sem mudança.')
+          inserted,
+          msg
         });
       }
 
-      // Pausa entre as atualizações e o próximo ExtractMin: as keys em H já
-      // estão atualizadas, mas o próximo vértice ainda não foi extraído.
-      if (H.size > 0) {
-        let summary;
-        if (unreachable) summary = `Como dist(${nodeRef(w)}) = ∞, nenhuma key muda.`;
-        else if (evaluated === 0) summary = `${nodeRef(w)} não tem arestas para vértices de <i>V − X</i>: nenhuma key muda.`;
-        else summary = `Todas as arestas de ${nodeRef(w)} para <i>V − X</i> foram avaliadas: as keys em <i>H</i> estão atualizadas.`;
+      // Pausa entre as atualizações e o próximo ExtractMin.
+      if (H.length > 0) {
+        const summary = g.adj.get(u).length
+          ? `Todas as arestas saindo de ${nodeRef(u)} foram avaliadas.`
+          : `${nodeRef(u)} não tem arestas saindo dele.`;
         snap({
           phase: 'pause',
-          lines: [8],
-          msg: `${summary} <span class="tip"><i>H</i> não está vazia; o próximo passo é ExtractMin(<i>H</i>). Qual vértice será extraído?</span>`
+          lines: [7],
+          msg: `${summary} <span class="tip"><i>H</i> não está vazia; o próximo passo é ExtractMin(<i>H</i>). Qual par será extraído?</span>`
         });
       }
     }
 
+    const unreachable = ids.filter(id => !inX.has(id));
     snap({
       phase: 'done',
-      lines: [8, 16],
-      msg: `<b><i>H</i> está vazia: fim!</b> Cada dist(<i>v</i>) é a distância mínima de ${nodeRef(s)} até <i>v</i>; as arestas azuis formam a árvore de caminhos mínimos.`
+      lines: [7, 16],
+      msg: `<b><i>H</i> está vazia: fim!</b> Cada dist(<i>v</i>) é a distância mínima de ${nodeRef(s)} até <i>v</i>; as arestas azuis formam a árvore de caminhos mínimos.` +
+        (unreachable.length ? ` ${unreachable.map(nodeRef).join(', ')} nunca entrou em <i>H</i>: inalcançável, dist = ∞.` : '')
     });
     return out;
   }
@@ -320,7 +342,7 @@
   function renderGraph(state) {
     const inX = new Set(state.X);
     const started = state.phase !== 'input';
-    const hoverPath = hovered && started && (state.key[hovered] !== INF)
+    const hoverPath = hovered && started && (state.dist[hovered] !== INF)
       ? new Set(pathTo(state, hovered).edges) : new Set();
 
     const treeEdge = new Map(); // aresta -> vértice cujo pred ela representa
@@ -345,6 +367,7 @@
       if (n.id === state.wStar) classes.push('current');
       if (n.id === state.target) classes.push('target');
       if (n.id === state.changed) classes.push('changed');
+      if (n.id === state.stale) classes.push('stale');
       if (n.id === hovered) classes.push('hovered');
       d.group.setAttribute('class', classes.join(' '));
       d.halo.setAttribute('class', inX.has(n.id) ? 'halo on' : 'halo');
@@ -353,8 +376,7 @@
         d.badge.setAttribute('class', 'badge hidden');
         return;
       }
-      const value = inX.has(n.id) ? state.dist[n.id] : state.key[n.id];
-      d.badgeText.textContent = fmt(value);
+      d.badgeText.textContent = fmt(state.dist[n.id]);
       const width = 20 + 12 * d.badgeText.textContent.length;
       const ca = Math.cos(d.badgeAngle);
       const cx = d.x + ca * (R + 20 + Math.abs(ca) * (width / 2 - 12));
@@ -386,18 +408,22 @@
       ui.heap.innerHTML = '<p class="empty">ainda não inicializada</p>';
       return;
     }
-    const sorted = state.H.slice().sort((a, b) =>
-      (state.key[a] - state.key[b]) || (graph.order.get(a) - graph.order.get(b)));
+    const inX = new Set(state.X);
+    const chip = (cls, p, title) =>
+      `<div class="${cls.join(' ')}" title="${title}"><span class="chip-id">${p.v}</span><span class="chip-key">${fmt(p.d)}</span></div>`;
     const chips = [];
     if (state.extracted) {
-      chips.push(`<div class="chip leaving" title="extraído agora"><span class="chip-id">${state.extracted.id}</span><span class="chip-key">${fmt(state.extracted.key)}</span></div>`);
+      const p = state.extracted;
+      chips.push(chip(p.stale ? ['chip', 'leaving', 'discarded'] : ['chip', 'leaving'], p,
+        p.stale ? 'extraído agora: obsoleto, descartado' : 'extraído agora'));
     }
-    sorted.forEach((id, i) => {
+    state.H.slice().sort((a, b) => (a.d - b.d) || (a.seq - b.seq)).forEach((p, i) => {
       const cls = ['chip'];
+      const obsolete = inX.has(p.v) || p.d > state.dist[p.v];
       if (i === 0) cls.push('min');
-      if (id === state.changed) cls.push('changed');
-      if (id === state.target && id !== state.changed) cls.push('target');
-      chips.push(`<div class="${cls.join(' ')}"><span class="chip-id">${id}</span><span class="chip-key">${fmt(state.key[id])}</span></div>`);
+      if (obsolete) cls.push('obsolete');
+      if (p.seq === state.inserted) cls.push('changed');
+      chips.push(chip(cls, p, obsolete ? 'par obsoleto' : `par (${fmt(p.d)}, ${p.v})`));
     });
     ui.heap.innerHTML = chips.length ? chips.join('') : '<p class="empty">vazia</p>';
   }
@@ -415,7 +441,7 @@
       let pred = '–';
       let path = '';
       if (started) {
-        const v = inX.has(id) ? state.dist[id] : state.key[id];
+        const v = state.dist[id];
         value = id === state.changed
           ? `<s>${fmt(state.old)}</s> <b>${fmt(v)}</b>`
           : (inX.has(id) ? `<b>${fmt(v)}</b>` : fmt(v));

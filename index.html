@@ -51,21 +51,21 @@
         <div class="pseudo">
           <p class="pseudo-head"><b>procedure</b> <span class="proc">DijkstraHeap</span>(<i>G</i> = (<i>V</i>, <i>E</i>), <i>s</i>, <i>ℓ</i>)</p>
           <ol id="pseudoLines" class="pseudo-lines">
-            <li data-line="1" class="meta"><b>Entrada:</b> grafo <i>G</i> = (<i>V</i>, <i>E</i>) em listas de adjacência, um vértice <i>s</i> ∈ <i>V</i> e pesos <i>ℓ<sub>e</sub></i> ≥ 0 para cada <i>e</i> ∈ <i>E</i></li>
+            <li data-line="1" class="meta"><b>Entrada:</b> grafo dirigido <i>G</i> = (<i>V</i>, <i>E</i>) em listas de adjacência, um vértice <i>s</i> ∈ <i>V</i> e pesos <i>ℓ<sub>e</sub></i> ≥ 0 para cada <i>e</i> ∈ <i>E</i></li>
             <li data-line="2" class="meta"><b>Pós-condição:</b> para todo vértice <i>v</i>, dist(<i>v</i>) é a distância <i>d</i>(<i>s</i>, <i>v</i>)</li>
-            <li data-line="3"><i>X</i> ← ∅, <i>H</i> ← heap vazio</li>
-            <li data-line="4">key(<i>s</i>) ← 0</li>
-            <li data-line="5"><b>for</b> cada <i>v</i> ≠ <i>s</i> <b>do</b></li>
-            <li data-line="6" class="in1">key(<i>v</i>) ← +∞</li>
-            <li data-line="7">Heapify(<i>V</i>)</li>
-            <li data-line="8"><b>while</b> <i>H</i> não está vazio <b>do</b></li>
-            <li data-line="9" class="in1"><i>w</i>* ← ExtractMin(<i>H</i>)</li>
-            <li data-line="10" class="in1">Adicione <i>w</i>* a <i>X</i></li>
-            <li data-line="11" class="in1">dist(<i>w</i>*) ← key(<i>w</i>*)</li>
-            <li data-line="12" class="in1"><b>for</b> cada aresta (<i>w</i>*, <i>y</i>) com <i>y</i> ∉ <i>X</i> <b>do</b></li>
-            <li data-line="13" class="in2">Delete <i>y</i> de <i>H</i></li>
-            <li data-line="14" class="in2">key(<i>y</i>) ← min{key(<i>y</i>), dist(<i>w</i>*) + <i>ℓ</i><sub><i>w</i>*<i>y</i></sub>}</li>
-            <li data-line="15" class="in2">Insira <i>y</i> em <i>H</i></li>
+            <li data-line="3"><i>X</i> ← ∅</li>
+            <li data-line="4">dist(<i>v</i>) ← +∞ para todo <i>v</i> ∈ <i>V</i></li>
+            <li data-line="5">dist(<i>s</i>) ← 0</li>
+            <li data-line="6"><i>H</i> ← heap contendo apenas o par (0, <i>s</i>)</li>
+            <li data-line="7"><b>while</b> <i>H</i> não está vazio <b>do</b></li>
+            <li data-line="8" class="in1">(<i>d</i>, <i>u</i>) ← ExtractMin(<i>H</i>)</li>
+            <li data-line="9" class="in1"><b>if</b> <i>u</i> ∈ <i>X</i> <b>then</b></li>
+            <li data-line="10" class="in2"><b>continue</b> <span class="pseudo-comment">▷ par obsoleto: <i>u</i> já foi processado</span></li>
+            <li data-line="11" class="in1">Adicione <i>u</i> a <i>X</i> <span class="pseudo-comment">▷ <i>d</i> = dist(<i>u</i>)</span></li>
+            <li data-line="12" class="in1"><b>for</b> cada aresta (<i>u</i>, <i>v</i>) ∈ <i>E</i> <b>do</b></li>
+            <li data-line="13" class="in2"><b>if</b> <i>d</i> + <i>ℓ<sub>uv</sub></i> &lt; dist(<i>v</i>) <b>then</b></li>
+            <li data-line="14" class="in3">dist(<i>v</i>) ← <i>d</i> + <i>ℓ<sub>uv</sub></i></li>
+            <li data-line="15" class="in3">Insert(<i>H</i>, (dist(<i>v</i>), <i>v</i>))</li>
             <li data-line="16"><b>Retorne</b> dist</li>
           </ol>
         </div>
@@ -81,8 +81,8 @@
         </div>
         <ul class="legend">
           <li><span class="swatch node-x"></span>em <i>X</i> (distância definitiva)</li>
-          <li><span class="swatch node-rest"></span>em <i>V − X</i> (key provisória, está em <i>H</i>)</li>
-          <li><span class="swatch node-current"></span><i>w*</i> (extraído agora)</li>
+          <li><span class="swatch node-rest"></span>em <i>V − X</i> (dist provisória)</li>
+          <li><span class="swatch node-current"></span><i>u</i> (extraído agora)</li>
           <li><span class="swatch line-active"></span>aresta avaliada</li>
           <li><span class="swatch line-tree"></span>caminhos mínimos</li>
         </ul>
@@ -91,14 +91,14 @@
       <aside class="panel side-panel" aria-label="Estado do algoritmo">
         <section class="side-block">
           <h2>Fila de prioridade <i>H</i></h2>
-          <p class="side-sub">vértices de <i>V − X</i> ordenados por key (o primeiro é o mínimo)</p>
+          <p class="side-sub">pares (dist, <i>v</i>) ordenados por dist (o primeiro é o mínimo); pares <span class="obsolete-text">cinza</span> são obsoletos</p>
           <div id="heap" class="heap"></div>
         </section>
         <section class="side-block">
           <h2>Tabela de distâncias</h2>
           <table class="dist-table">
             <thead>
-              <tr><th>v</th><th>key / dist</th><th>pred</th><th>caminho</th></tr>
+              <tr><th>v</th><th>dist</th><th>pred</th><th>caminho</th></tr>
             </thead>
             <tbody id="distBody"></tbody>
           </table>
@@ -129,6 +129,7 @@
         <li><b>Automático</b> avança sozinho (tecla <kbd>A</kbd>); <b>Reiniciar</b> volta ao início (<kbd>Home</kbd>).</li>
         <li><b>Pseudocódigo</b> mostra a linha executada em cada passo (tecla <kbd>P</kbd>).</li>
         <li><b>Grafos</b> carrega um exemplo ou gera um grafo aleatório.</li>
+        <li>A fila <i>H</i> guarda pares (dist, <i>v</i>) e começa só com (0, <i>s</i>). Pares <b>cinza</b> são obsoletos: o vértice já está em <i>X</i> ou há um par mais novo, com distância menor. Quando um par obsoleto sai da fila, ele é descartado.</li>
         <li>No passo inicial, clique em um vértice para escolhê-lo como origem <i>s</i>.</li>
         <li>Passe o mouse sobre um vértice ou uma linha da tabela para ver o caminho até ele.</li>
       </ul>

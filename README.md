@@ -13,9 +13,9 @@ The tool was built to make algorithmic decisions visible through synchronized gr
 
 ## ✨ Features
 
-- **Large graph in the center**, with nodes in *X* (blue, final distance) clearly separated from nodes in *V − X* (white, tentative key); the extracted node (*w\**) and the edge being relaxed are shown in orange.
-- **Priority queue *H*** sorted by key, highlighting the minimum, the extracted node and updated keys.
-- **Distance table** with key/dist, predecessor and path for each node; hover to see the path on the graph.
+- **Large graph in the center**, with nodes in *X* (blue, final distance) clearly separated from nodes in *V − X* (white, tentative dist); the extracted node (*u*) and the edge being relaxed are shown in orange.
+- **Priority queue *H*** of (dist, *v*) pairs that starts with the source only, as in the slides' pseudocode: each improvement inserts a new pair and the old one becomes **stale** (shown in gray), being discarded when extracted.
+- **Distance table** with dist, predecessor and path for each node; hover to see the path on the graph.
 - **Pseudocode** (same heap-based version as the course slides), toggled by a button, with the current line highlighted.
 - **Step-by-step execution**: forward, back, reset and auto-run with three speeds (keys <kbd>→</kbd> <kbd>←</kbd> <kbd>space</kbd> <kbd>A</kbd> <kbd>P</kbd>).
 - **Example graphs** (including the ones from the lectures) and planar **random graphs**, directed or undirected; on the initial step, click a node to make it the source.

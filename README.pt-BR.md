@@ -13,9 +13,9 @@ A ferramenta foi construída para tornar visíveis as decisões do algoritmo por
 
 ## ✨ Funcionalidades
 
-- **Grafo grande no centro**, com os vértices em *X* (azuis, distância definitiva) claramente separados dos vértices em *V − X* (brancos, key provisória); o vértice extraído (*w\**) e a aresta avaliada aparecem em laranja.
-- **Fila de prioridade *H*** ordenada por key, destacando o mínimo, o vértice extraído e as keys atualizadas.
-- **Tabela de distâncias** com key/dist, predecessor e caminho de cada vértice; passe o mouse para ver o caminho no grafo.
+- **Grafo grande no centro**, com os vértices em *X* (azuis, distância definitiva) claramente separados dos vértices em *V − X* (brancos, dist provisória); o vértice extraído (*u*) e a aresta avaliada aparecem em laranja.
+- **Fila de prioridade *H*** com pares (dist, *v*), começando só com a origem, como no pseudocódigo dos slides: cada melhora insere um par novo e o antigo fica **obsoleto** (em cinza), sendo descartado quando sai da fila.
+- **Tabela de distâncias** com dist, predecessor e caminho de cada vértice; passe o mouse para ver o caminho no grafo.
 - **Pseudocódigo** (o mesmo dos slides, versão com heap), aberto por um botão, com a linha executada em destaque.
 - **Execução passo a passo**: avançar, voltar, reiniciar e modo automático com três velocidades (teclas <kbd>→</kbd> <kbd>←</kbd> <kbd>espaço</kbd> <kbd>A</kbd> <kbd>P</kbd>).
 - **Grafos de exemplo** (incluindo os das aulas) e **grafos aleatórios** planares, direcionados ou não; no passo inicial, clique em um vértice para escolher a origem.

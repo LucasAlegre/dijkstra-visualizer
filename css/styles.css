@@ -30,6 +30,7 @@ body {
   margin: 0;
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr); /* não deixa textos em nowrap alargarem a página */
   background: var(--bg);
   color: var(--ink);
   font-family: var(--font);
@@ -70,6 +71,7 @@ i { font-family: var(--math); font-size: 1.08em; }
   background: var(--bg);
   color: var(--ink);
   cursor: pointer;
+  white-space: nowrap;
   transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
 .btn:hover:not(:disabled) { border-color: var(--blue); color: var(--blue); }
@@ -167,6 +169,8 @@ i { font-family: var(--math); font-size: 1.08em; }
 }
 .pseudo-lines li.in1 { padding-left: 3.5rem; }
 .pseudo-lines li.in2 { padding-left: 4.7rem; }
+.pseudo-lines li.in3 { padding-left: 5.9rem; }
+.pseudo-comment { color: var(--muted); font-size: 0.9em; }
 .pseudo-lines li.meta { color: var(--muted); font-size: 0.9em; }
 .pseudo-lines li.hl { background: var(--orange-soft); border-left-color: var(--orange); }
 
@@ -252,6 +256,7 @@ i { font-family: var(--math); font-size: 1.08em; }
 .node.target .body { stroke: var(--orange); stroke-width: 5; }
 .node.changed .ring { stroke: var(--green); stroke-opacity: 0.55; }
 .node.hovered .body { stroke: var(--red); stroke-width: 5; }
+.node.stale .ring { stroke: var(--red); stroke-opacity: 0.6; stroke-dasharray: 6 4; }
 
 .source-tag {
   font-family: var(--font);
@@ -320,6 +325,12 @@ i { font-family: var(--math); font-size: 1.08em; }
 .chip.target { border-color: var(--orange); }
 .chip.leaving { border-style: dashed; border-color: var(--orange); background: var(--orange-soft); opacity: 0.85; }
 .chip.leaving .chip-id { text-decoration: line-through; }
+.chip.obsolete { border-color: #c4ccd2; background: var(--panel); box-shadow: none; }
+.chip.obsolete .chip-id, .chip.obsolete .chip-key { color: var(--line-strong); }
+.chip.min.obsolete { border-color: var(--orange); }
+.chip.leaving.discarded { border-color: var(--red); background: #fbeaea; }
+.chip.leaving.discarded .chip-id, .chip.leaving.discarded .chip-key { color: var(--red); }
+.obsolete-text { color: var(--line-strong); font-weight: 600; }
 .heap:has(.chip.min) { padding-top: 0.7rem; }
 
 .dist-table { width: 100%; border-collapse: collapse; font-size: 1.15rem; margin-top: 0.4rem; }
